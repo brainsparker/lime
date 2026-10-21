@@ -5,6 +5,7 @@
 
 #![allow(unused_imports)]
 
+mod desktop;
 mod export;
 mod file_lock;
 mod hot_reload;
@@ -18,6 +19,7 @@ mod tui_keymap;
 mod types;
 mod yaml;
 
+pub use desktop::{DesktopConfig, ExternalBrowserLinkShortcut, LinkOpenTarget};
 pub use export::{ExportBundle, ExportOptions, ExportService, REDACTED_PLACEHOLDER};
 pub use file_lock::config_file_lock;
 pub use hot_reload::{

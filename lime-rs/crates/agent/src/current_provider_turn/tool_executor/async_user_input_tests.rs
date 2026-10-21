@@ -26,6 +26,7 @@ async fn async_questions_publish_before_accepted_without_session_response_owner(
     ] {
         let (agent_sender, mut agent_events) = tokio::sync::mpsc::unbounded_channel();
         let executor = CurrentTurnToolExecutor {
+            internal_agent_policy: None,
             state: AgentRuntimeState::new(),
             policy: crate::request_tool_policy::resolve_request_tool_policy(None),
             event_sender: agent_sender,

@@ -1001,36 +1001,33 @@ impl RuntimeCore {
         thread_id: &str,
         turn_id: &str,
     ) -> Result<RuntimeMidTurnCompactionResult, String> {
-        let (session, turns, events) = {
-            let state = self
-                .state
-                .lock()
-                .map_err(|_| "runtime core state mutex poisoned".to_string())?;
-            let stored = state
-                .sessions
-                .get(session_id)
-                .ok_or_else(|| format!("session not found: {session_id}"))?;
-            (
-                stored.session.clone(),
-                stored.turns.clone(),
-                stored.events.clone(),
-            )
-        };
-        let covered = events
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "runtime core state mutex poisoned".to_string())?;
+        let stored = state
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| format!("session not found: {session_id}"))?;
+        if stored.session.thread_id != thread_id {
+            return Err(format!(
+                "same-turn compaction thread mismatch: expected {}, got {}",
+                stored.session.thread_id, thread_id
+            ));
+        }
+        // Keep the state lock through snapshot construction and append. The replacement must
+        // cover exactly the event prefix represented by the provider messages; a concurrent
+        // steer/tool event cannot slip between the boundary read and its durable ACK.
+        let covered = stored
+            .events
             .last()
             .map(|event| event.sequence)
             .unwrap_or_default();
-        if session.thread_id != thread_id {
-            return Err(format!(
-                "same-turn compaction thread mismatch: expected {}, got {}",
-                session.thread_id, thread_id
-            ));
-        }
         let compaction_id = format!("mid-turn-{turn_id}-{covered}");
         let compaction = super::context_compaction::build_session_context_compaction(
-            &session,
-            &turns,
-            &events,
+            &stored.session,
+            &stored.turns,
+            &stored.events,
             covered,
             &compaction_id,
             &summary,
@@ -1053,13 +1050,19 @@ impl RuntimeCore {
             "summary": compaction.summary.clone(),
             "artifact": compaction.artifact,
         });
-        self.event_appender()
-            .append_external_runtime_events(
+        let appended_events = self
+            .event_appender()
+            .append_external_runtime_events_locked(
+                stored,
                 session_id,
                 Some(turn_id),
                 vec![RuntimeEvent::new("context.compaction.completed", payload)],
             )
             .map_err(|error| error.to_string())?;
+        let durable_event_id = appended_events
+            .iter()
+            .find(|event| event.event_type == "context.compaction.completed")
+            .map(|event| event.event_id.clone());
         let mut messages = vec![
             model_provider::current_client::CurrentProviderMessage::user(vec![
                 model_provider::current_client::CurrentProviderContent::Text(summary),
@@ -1077,6 +1080,7 @@ impl RuntimeCore {
             compaction_id: result_compaction_id,
             context_epoch: compaction.context_epoch,
             covered_through_sequence: compaction.covered_through_sequence,
+            durable_event_id,
         })
     }
 }
@@ -1528,6 +1532,7 @@ impl RuntimeCore {
             .transpose()
             .map_err(|error| RuntimeCoreError::Backend(error.to_string()))?
             .flatten()
+            .or_else(|| self.loaded_ephemeral_thread(&session.thread_id))
             .map(|thread| {
                 (
                     thread.forked_from_id.map(|id| id.to_string()),
@@ -1586,6 +1591,13 @@ impl RuntimeCore {
                 },
             )),
             mid_turn_compaction_commit: None,
+            internal_agent_policy: self
+                .state
+                .lock()
+                .expect("runtime state")
+                .internal_agents
+                .get(&session.session_id)
+                .cloned(),
         };
         let effective_runtime_options = self
             .backend
@@ -2158,6 +2170,9 @@ impl RuntimeCore {
                         .collect::<Vec<_>>())
                 })
             };
+        let interrupt_backend = self.backend.clone();
+        let interrupt_request = request.clone();
+        let interrupt_event_sender = event_sender.clone();
         let task = Arc::new(
             RuntimeSessionClosureTask::new(
                 turn_id.clone(),
@@ -2189,7 +2204,19 @@ impl RuntimeCore {
                 },
             )
             .with_mailbox_loader(mailbox_loader)
-            .with_abort(|_context| Box::pin(async {})),
+            .with_interrupt(move |_context| {
+                let backend = interrupt_backend.clone();
+                let request = interrupt_request.clone();
+                let event_sender = interrupt_event_sender.clone();
+                Box::pin(async move {
+                    let mut sink = ChannelRuntimeEventSink {
+                        sender: event_sender,
+                    };
+                    if let Err(error) = backend.run_interrupt_hooks(request, &mut sink).await {
+                        tracing::warn!(%error, "Interrupt hook execution failed");
+                    }
+                })
+            }),
         );
         let session = self.session_loop_for_input(&session_id, &thread_id).await?;
         // Canonical admission already owns this candidate Turn. A concurrent actor Turn
@@ -2242,7 +2269,18 @@ impl RuntimeCore {
                     if let Some(event) = event {
                         let result = match event {
                             SessionLoopEvent::ModelHistory(append) => append.persist(sink),
-                            SessionLoopEvent::Runtime(event) => sink.emit(event),
+                            SessionLoopEvent::Runtime(event) => {
+                                let usage_event = event.clone();
+                                let result = sink.emit(event);
+                                if result.is_ok() {
+                                    self.record_memory_citation_usage_for_event(
+                                        &submission.session_id,
+                                        &usage_event,
+                                    )
+                                    .await;
+                                }
+                                result
+                            }
                             SessionLoopEvent::Transient(event) => sink.emit_transient(event),
                             SessionLoopEvent::CodeCellTrace(event) => {
                                 sink.emit_code_cell_trace(event)
@@ -2262,7 +2300,15 @@ impl RuntimeCore {
                     while let Ok(event) = submission.event_receiver.try_recv() {
                         match event {
                             SessionLoopEvent::ModelHistory(append) => append.persist(sink)?,
-                            SessionLoopEvent::Runtime(event) => sink.emit(event)?,
+                            SessionLoopEvent::Runtime(event) => {
+                                let usage_event = event.clone();
+                                sink.emit(event)?;
+                                self.record_memory_citation_usage_for_event(
+                                    &submission.session_id,
+                                    &usage_event,
+                                )
+                                .await;
+                            }
                             SessionLoopEvent::Transient(event) => sink.emit_transient(event)?,
                             SessionLoopEvent::CodeCellTrace(event) => {
                                 sink.emit_code_cell_trace(event)?

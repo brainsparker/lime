@@ -45,7 +45,7 @@
 
 `OAa` 还处理 Shift+上下扩选、Ctrl/Meta+Space 切换 focused selection、Ctrl/Meta+A 全选可见行。无修饰方向键改变焦点/展开，不自动打开文件；Home/End 到首末。IME 与普通文字输入的消费条件独立。
 
-这些框架能力不等于工作区批量操作合同：`Le` 只接受一个 `selectedPath`，selection 回调把 `e[0]` 写入状态；`qt/Zt` 从选择数组取首个非目录路径打开 preview。`Le` 的 `Ke` effect 在受控路径/paths/resetKey 等变化时把集合归一成该单一路径。搜索 `Yt` 也只从命中数组取一个文件，没有批量打开/删除。由静态代码可以确认修饰键分支存在，以及受控单一路径回写；持久多选的最终交互与每种 rerender 时序仍须运行观察。当前 Lime 明确只有 `selectedPath`，不能把未实现整套通用多选或批量菜单写成已对齐，也不应先新增未经确认的产品行为。
+这些框架能力不等于工作区批量操作合同：`Le` 只接受一个 `selectedPath`，selection 回调把 `e[0]` 写入状态；`qt/Zt` 从选择数组取首个非目录路径打开 preview。`Le` 的 `Ke` effect 在受控路径/paths/resetKey 等变化时把集合归一成该单一路径。搜索 `Yt` 也只从命中数组取一个文件，没有批量打开/删除。由静态代码可以确认修饰键分支存在，以及受控单一路径回写；持久多选的最终交互与每种 rerender 时序仍须运行观察。初次审计时 Lime 只有 `selectedPath`；2026-10-21 后继已补下面记录的框架选择投影，不能据此声称批量菜单或参考运行也已对齐。
 
 重命名在 model/controller 由 `renaming` 显式启用，`OAa` 的 `renamingEnabled` 默认 false；开启后 F2、Enter 提交、Escape 取消、blur 提交属于通用框架。当前 `Le` 构建 model 没有传 renaming，正常 `Jt` 和搜索 `Yt` 也没有开启；已读树菜单及 REA59 五 builder 未提供 rename/delete。结论限定于这些 current 工作区消费者：**此切片不应新增 rename/delete**，不能用通用框架支持证明产品必须显示。其他消费者或未来版本不在该否定范围。
 
@@ -273,3 +273,14 @@ FileShellHost 现有五个明文方法 getTargets/detectTarget/loadTargetIcon/op
 Host 在统一 appDataRoot 的单一 open-in-target-preferences 值保存 global/perPath，串行原子替换；普通菜单选择不写，明确 persistPreferredTargetPath 成功后才同时写两者，全局设置只改 global。Renderer 共享一个一分钟 open-in-targets query，key 保留 cwd/hostId/path/deferEnrichment；真实预取与 tree/tab/breadcrumb 复用，detect 失败只取消该目标，图标失败保留可用性，abort 不回写。树等待期间只给 disabled Open in；标签/内容等待目标后开启，实际打开组后才有分隔线。
 
 已证 FileSourceBreadcrumb 的实际按钮接同一 wrapper，目录 workspace/file 模式与真实路径分开；没有给整个 CodeMirror/文档编辑面包菜单。目录树行仍无菜单。内容/标签 Reveal 使用同一 fileManager target；原保存与 FileTabLifecycle 身份保护继续唯一。定向测试与源码冻结见后继执行计划及 `artifacts/file-targets-20261020`；这些测试使用显式测试 native/query fixture，不代表真实 OS 发现、打开成功或 Desktop Gate B。完整 editor/custom target、Windows 关联集合、remote、Copy contents、GitHub/library/Add to chat、其它实际内容消费者仍未完成，交后继证据闭合，不创建假占位项。
+
+
+## 2026-10-21 选择交互后继
+
+复用前述 REA 指针、controller 和 workspace consumer 原件，补齐唯一 `FileTree` 的 Ctrl/Meta toggle、Shift 可见范围、Mod+Shift additive、Shift 方向键扩展/反向收缩、Mod+Space 与 Mod+A。框架明确导出的 `selectPathRange` / `extendSelectionFromFocused` 等方法语义映射为相邻 `fileTreeSelection` 纯选择投影，不把压缩类名作为 Lime 类名，也不新增 backend、文件 cache 或持久选择 store。
+
+选择沿 Set 插入顺序交付首个文件；目录修饰点击不展开，普通目录点击仍 toggle。目录/搜索适配入口传原数据投影作为 resetKey，受控路径、scope 或数据身份改变时恢复单一路径；展开本身不创建另一套选择。搜索、目录与虚拟化继续消费一个 Renderer；没有增加批量打开、重命名或删除入口。
+
+受影响 10 套 94 项通过，其中 Files 实际 DOM/键盘 3 套 31 项覆盖切换、正反范围、加选、扩选与收缩、受控/scope/data reset、IME 和离屏全选。旧“所有组合键都忽略”的正向断言已迁移。新增真实 Electron helper 只通过原生点击/键盘与只读 DOM 观察验证当前产品，不注入选择 state；标准 GUI smoke、聚合 current fixture 及默认门禁尚待本轮终态。完整结算见[后续计划](../../exec-plans/codex-gui-alignment-followthrough-20261021.md)。
+
+后继实际回归另复现了折叠后首次选择被可见行过滤的问题。REA58 的 Zt 不作可见性过滤，controller collapse 不移除隐藏路径；因此 FileTree 现在只用既有目录/搜索投影给出的完整 filePaths 判断文件，可见 rows 只决定范围与焦点。两个实际组件回归验证折叠、加选、重新展开保持同一首个文件和选择；受影响 8 套 66 项及 scoped lint 通过。此输入为必填，已直接迁移全部生产和测试消费者，无可见路径 fallback。新增 Electron additive/all 分支和最新产品验收由后续计划分别结算。

@@ -34,6 +34,14 @@ export async function collectReviewThreadSidePanelEvidence(
     threadId,
     { timeout: timeoutMs },
   );
+  const filesToggle = root.getByTestId("canvas-workbench-changes-files-toggle");
+  await filesToggle.waitFor({ state: "visible", timeout: timeoutMs });
+  const filesInitiallyOpen =
+    (await filesToggle.getAttribute("aria-expanded")) === "true";
+  if (!filesInitiallyOpen) await filesToggle.click();
+  await root
+    .getByTestId("canvas-workbench-changes-file-list")
+    .waitFor({ state: "visible", timeout: timeoutMs });
 
   const selected = [];
   for (const change of changes) {
@@ -105,6 +113,7 @@ export async function collectReviewThreadSidePanelEvidence(
   const evidence = {
     host,
     threadId,
+    filesInitiallyOpen,
     selected,
     externalOpenBefore,
     externalOpenAfter,

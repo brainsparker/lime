@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 
-async function targetSnapshot(page, filePath, cwd) {
+async function verifyClipboard(clipboard, expected, message) {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    if ((await clipboard.readText()) === expected) return;
+    await delay(50);
+  }
+  throw new Error(message);
+}
+
+export async function targetSnapshot(page, filePath, cwd) {
   return page.evaluate(
     async ({ path, cwd }) => {
       const params = { path, cwd, deferEnrichment: true };
@@ -46,7 +58,7 @@ async function verifyMenu(
   filePath,
   capture,
   name,
-  { cwd, tab = false } = {},
+  { cwd, tab = false, clipboard } = {},
 ) {
   const menu = page.getByTestId("workspace-file-context-menu");
   await menu.waitFor({ state: "visible" });
@@ -61,6 +73,7 @@ async function verifyMenu(
       : []),
     "workspace-file-menu-save-as",
     "workspace-file-menu-copy-path",
+    ...(tab ? ["workspace-file-menu-copy-contents"] : []),
     ...(tab && targets.reveal ? ["workspace-file-menu-reveal-path"] : []),
   ];
   await page.waitForFunction(
@@ -88,8 +101,22 @@ async function verifyMenu(
   );
   await capture(name);
   if (targets.primary) {
-    await menu.getByTestId("workspace-file-menu-open-with").hover();
-    const submenu = page.getByRole("menu").last();
+    const trigger = menu.getByTestId("workspace-file-menu-open-with");
+    await trigger.hover();
+    await page.waitForFunction(() => {
+      const trigger = document.querySelector(
+        '[data-testid="workspace-file-menu-open-with"]',
+      );
+      return (
+        trigger?.getAttribute("aria-expanded") === "true" &&
+        trigger.hasAttribute("aria-controls")
+      );
+    });
+    const submenuId = await trigger.getAttribute("aria-controls");
+    assert.ok(submenuId, "Open with must control its own submenu");
+    const submenu = page.locator(
+      `[role="menu"][id=${JSON.stringify(submenuId)}]`,
+    );
     await submenu.waitFor({ state: "visible" });
     assert.equal(
       await submenu.getByRole("menuitem").count(),
@@ -106,10 +133,11 @@ async function verifyMenu(
     await capture(`${name}-open-with`);
     await menu.getByTestId("workspace-file-menu-copy-path").hover();
   }
+  await clipboard.writeText(`file-path-sentinel:${randomUUID()}`);
   await menu.getByTestId("workspace-file-menu-copy-path").click();
   await menu.waitFor({ state: "hidden" });
-  assert.equal(
-    await page.evaluate(() => navigator.clipboard.readText()),
+  await verifyClipboard(
+    clipboard,
     filePath,
     "copy must use the actual file path, including flattened search ancestors",
   );
@@ -123,6 +151,7 @@ async function verifyMenu(
 
 export async function verifyFileTreeContextMenu({
   page,
+  clipboard,
   directory,
   file,
   filePath,
@@ -140,7 +169,7 @@ export async function verifyFileTreeContextMenu({
     filePath,
     capture,
     "file-tree-context-menu",
-    { cwd },
+    { cwd, clipboard },
   );
   await file.focus();
   await file.press("Shift+F10");
@@ -149,7 +178,7 @@ export async function verifyFileTreeContextMenu({
     filePath,
     capture,
     "file-tree-keyboard-menu",
-    { cwd },
+    { cwd, clipboard },
   );
   return {
     fileOnlyTrigger: true,
@@ -164,6 +193,7 @@ export async function verifyFileTreeContextMenu({
 
 export async function verifyFileTabContextMenu({
   page,
+  clipboard,
   tab,
   filePath,
   capture,
@@ -174,7 +204,26 @@ export async function verifyFileTabContextMenu({
     filePath,
     capture,
     "file-tab-context-menu",
-    { tab: true },
+    { tab: true, clipboard },
   );
-  return { filePathIdentity: true, copiedExactPath: true, targets };
+  await tab.click({ button: "right" });
+  const menu = page.getByTestId("workspace-file-context-menu");
+  await menu.waitFor({ state: "visible" });
+  await clipboard.writeText(`file-contents-sentinel:${randomUUID()}`);
+  await menu.getByTestId("workspace-file-menu-copy-contents").click();
+  await menu.waitFor({ state: "hidden" });
+  const contents = fs.readFileSync(filePath, "utf8");
+  await verifyClipboard(
+    clipboard,
+    contents,
+    "Content copy must read the complete actual file, not its path or preview",
+  );
+  return {
+    filePathIdentity: true,
+    copiedExactPath: true,
+    copiedExactContents: true,
+    copiedContentBytes: Buffer.byteLength(contents),
+    copiedContentSha256: createHash("sha256").update(contents).digest("hex"),
+    targets,
+  };
 }

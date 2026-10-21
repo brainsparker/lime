@@ -151,9 +151,9 @@ pub use memory_store::LocalMemoryBackend;
 pub use memory_store::MemoryBackend;
 pub use memory_store::RolloutSummaryWriteParams;
 pub use memory_store::{
-    MemoryStageOneProvider, MemoryStageOneProviderRequest, MemoryStageOneRoute,
-    MemoryStageOneRunResult, MemoryStageOneVersion, MemoryStageTwoInput, MemoryStageTwoProvider,
-    MemoryStageTwoProviderRequest,
+    MemoryAgent, MemoryAgentError, MemoryAgentRequest, MemoryStageOneProvider,
+    MemoryStageOneProviderRequest, MemoryStageOneRoute, MemoryStageOneRunResult,
+    MemoryStageOneVersion,
 };
 pub use otel_trace::init_app_server_otel_from_env;
 pub use otel_trace::AppServerOtelGuard;

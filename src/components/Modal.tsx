@@ -12,6 +12,8 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   children: ReactNode;
+  "aria-labelledby"?: string;
+  "aria-describedby"?: string;
   /** Modal 内容区的额外 className */
   className?: string;
   /** 是否显示关闭按钮，默认 true */
@@ -30,6 +32,8 @@ export function Modal({
   isOpen,
   onClose,
   children,
+  "aria-labelledby": labelledBy,
+  "aria-describedby": describedBy,
   className = "",
   showCloseButton = true,
   closeOnOverlayClick = true,
@@ -154,6 +158,8 @@ export function Modal({
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby={labelledBy}
+          aria-describedby={describedBy}
           className={`relative my-4 flex w-full ${maxWidth} max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-lg bg-background shadow-xl sm:my-6 sm:max-h-[calc(100vh-3rem)] ${className}`}
           data-draggable={draggable ? "true" : "false"}
           onClick={(event) => event.stopPropagation()}

@@ -65,7 +65,7 @@ pub(super) fn validate_thread_settings(
     Ok(())
 }
 
-pub(super) fn apply_thread_settings_patch(
+pub(in crate::runtime) fn apply_thread_settings_patch(
     metadata: &mut Map<String, Value>,
     params: ThreadSettingsUpdateParams,
     resolved_permission_profile: Option<ResolvedPermissionProfile>,

@@ -103,6 +103,10 @@ describe("Inputbar 已有线程目标接线", () => {
       const dialog = document.querySelector('[role="dialog"]');
       expect(dialog?.querySelector("h3")?.textContent).toBe(title);
       expect(
+        document.getElementById(dialog?.getAttribute("aria-labelledby") ?? "")
+          ?.textContent,
+      ).toBe(title);
+      expect(
         dialog?.querySelector('[data-testid="confirm-dialog-confirm"]')
           ?.textContent,
       ).toBe(confirmLabel);

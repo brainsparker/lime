@@ -20,8 +20,8 @@ mod extraction;
 mod review;
 mod rollout;
 mod stage_one_output;
-mod stage_two_output;
 mod state;
+mod workspace;
 
 pub(crate) use citations::parse_memory_citation;
 pub use rollout::RolloutSummaryWriteParams;
@@ -101,42 +101,31 @@ pub struct MemoryStageOneRoute {
 }
 
 #[derive(Debug, Clone)]
-pub struct MemoryStageTwoInput {
-    pub source_path: String,
-    pub raw_memory: Option<String>,
-    pub rollout_summary: Option<String>,
-    pub rollout_slug: Option<String>,
+pub struct MemoryAgentRequest {
+    pub cancellation: CancellationToken,
+    pub route: MemoryStageOneRoute,
+    pub root: PathBuf,
+    pub prompt: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct MemoryStageTwoProviderRequest {
-    /// Losing the phase-2 lease cancels execution before any artifact may be committed.
-    pub cancellation: CancellationToken,
-    pub session_id: String,
-    pub thread_id: String,
-    pub turn_id: String,
-    pub provider: String,
-    pub model: String,
-    pub reasoning_effort: Option<String>,
-    pub service_tier: Option<String>,
-    pub api_version: Option<String>,
-    pub route_protocol: app_server_protocol::ProtocolKind,
-    pub credential_ref: Option<String>,
-    pub cwd: Option<std::path::PathBuf>,
-    pub root_path: std::path::PathBuf,
-    pub inputs: Vec<MemoryStageTwoInput>,
-    pub system_prompt: String,
-    pub user_prompt: String,
-    pub output_schema: serde_json::Value,
-    pub strict: bool,
+#[derive(Debug)]
+pub struct MemoryAgentError {
+    pub cause: RuntimeCoreError,
+    /// A failed shutdown keeps the job lease until expiry.
+    pub shutdown_complete: bool,
+}
+impl From<RuntimeCoreError> for MemoryAgentError {
+    fn from(cause: RuntimeCoreError) -> Self {
+        Self {
+            cause,
+            shutdown_complete: true,
+        }
+    }
 }
 
 #[async_trait]
-pub trait MemoryStageTwoProvider: Send + Sync {
-    async fn sample(
-        &self,
-        request: MemoryStageTwoProviderRequest,
-    ) -> Result<String, RuntimeCoreError>;
+pub trait MemoryAgent: Send + Sync {
+    async fn run(&self, request: MemoryAgentRequest) -> Result<(), MemoryAgentError>;
 }
 
 #[async_trait]
@@ -157,6 +146,14 @@ pub struct MemoryStageOneRunResult {
 
 #[async_trait]
 pub trait MemoryBackend: Send + Sync {
+    async fn record_citation_usage(
+        &self,
+        _root: MemoryStoreRootParams,
+        _citation: app_server_protocol::protocol::v2::MemoryCitation,
+    ) -> Result<usize, RuntimeCoreError> {
+        Ok(0)
+    }
+
     async fn run_stage1(
         &self,
         _root: MemoryStoreRootParams,
@@ -171,7 +168,7 @@ pub trait MemoryBackend: Send + Sync {
         &self,
         _root: MemoryStoreRootParams,
         _route: MemoryStageOneRoute,
-        _provider: &dyn MemoryStageTwoProvider,
+        _provider: &dyn MemoryAgent,
     ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
         Err(backend_error("memory stage-2 is unavailable"))
     }
@@ -210,7 +207,7 @@ pub trait MemoryBackend: Send + Sync {
         &self,
         params: MemoryStoreConsolidateParams,
         route: MemoryStageOneRoute,
-        provider: &dyn MemoryStageTwoProvider,
+        provider: &dyn MemoryAgent,
     ) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError>;
 
     async fn list_review(
@@ -285,7 +282,6 @@ impl LocalMemoryBackend {
         fs::create_dir_all(root.join(audit::AUDIT_DIR)).map_err(io_error)?;
         fs::create_dir_all(root.join(INDEX_DIR)).map_err(io_error)?;
         ensure_file(root.join(SUMMARY_FILE))?;
-        ensure_file(root.join(MEMORY_FILE))?;
         Ok(())
     }
 
@@ -308,13 +304,12 @@ impl LocalMemoryBackend {
         path_to_relative_string(relative)
     }
 
-    /// Runs the current phase-2 artifact pipeline. The shared consolidation Agent
-    /// harness remains a separate implementation step.
+    /// Runs phase-2 through the shared consolidation Agent and storage lifecycle.
     pub async fn run_stage2(
         &self,
         root_params: MemoryStoreRootParams,
         route: &MemoryStageOneRoute,
-        provider: &dyn MemoryStageTwoProvider,
+        provider: &dyn MemoryAgent,
     ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
         consolidation::run_stage2(self, root_params, route, provider).await
     }
@@ -322,6 +317,37 @@ impl LocalMemoryBackend {
 
 #[async_trait]
 impl MemoryBackend for LocalMemoryBackend {
+    async fn record_citation_usage(
+        &self,
+        root_params: MemoryStoreRootParams,
+        citation: app_server_protocol::protocol::v2::MemoryCitation,
+    ) -> Result<usize, RuntimeCoreError> {
+        let root = self.resolve_root(&root_params)?;
+        self.ensure_layout(&root)?;
+        let scope_key = self.state_scope_key(&root)?;
+        let paths = citation
+            .entries
+            .iter()
+            .map(|entry| entry.path.trim())
+            .filter(|path| !path.is_empty())
+            .collect::<Vec<_>>();
+        let thread_ids = citation
+            .thread_ids
+            .iter()
+            .map(String::as_str)
+            .filter(|id| !id.trim().is_empty())
+            .collect::<Vec<_>>();
+        let mut updated = self
+            .state
+            .record_stage1_usage(&scope_key, &paths)
+            .map_err(RuntimeCoreError::Backend)?;
+        updated += self
+            .state
+            .record_stage1_usage_for_thread_ids(&scope_key, &thread_ids)
+            .map_err(RuntimeCoreError::Backend)?;
+        Ok(updated)
+    }
+
     async fn run_stage1(
         &self,
         root: MemoryStoreRootParams,
@@ -336,7 +362,7 @@ impl MemoryBackend for LocalMemoryBackend {
         &self,
         root: MemoryStoreRootParams,
         route: MemoryStageOneRoute,
-        provider: &dyn MemoryStageTwoProvider,
+        provider: &dyn MemoryAgent,
     ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
         LocalMemoryBackend::run_stage2(self, root, &route, provider).await
     }
@@ -613,21 +639,30 @@ impl MemoryBackend for LocalMemoryBackend {
         &self,
         params: MemoryStoreConsolidateParams,
         route: MemoryStageOneRoute,
-        provider: &dyn MemoryStageTwoProvider,
+        provider: &dyn MemoryAgent,
     ) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError> {
         let root_params = params.root.clone();
-        let result = consolidation::run_stage2(self, root_params.clone(), &route, provider).await?;
         let root = self.resolve_root(&root_params)?;
+        let before = (
+            fs::read(root.join(SUMMARY_FILE)).ok(),
+            fs::read(root.join(MEMORY_FILE)).ok(),
+        );
+        let result = consolidation::run_stage2(self, root_params.clone(), &route, provider).await?;
+        let updated = before
+            != (
+                fs::read(root.join(SUMMARY_FILE)).ok(),
+                fs::read(root.join(MEMORY_FILE)).ok(),
+            );
         Ok(MemoryStoreConsolidateResponse {
             root_scope: root_params.scope,
             root_path: path_to_display_string(&root)?,
             processed_notes: result.succeeded,
             skipped_notes: result.no_output,
-            archived_notes: result.succeeded,
+            archived_notes: 0,
             memory_path: MEMORY_FILE.to_string(),
             summary_path: SUMMARY_FILE.to_string(),
             warnings: Vec::new(),
-            updated: result.succeeded > 0,
+            updated,
         })
     }
 
@@ -781,8 +816,13 @@ fn reject_symlink_chain(root: &Path, path: &Path) -> Result<(), RuntimeCoreError
     for component in relative.components() {
         if let Component::Normal(segment) = component {
             current.push(segment);
-            if current.exists() {
-                reject_symlink(&current)?;
+            match fs::symlink_metadata(&current) {
+                Ok(metadata) if metadata.file_type().is_symlink() => {
+                    return Err(backend_error("memory symlink paths are not allowed"))
+                }
+                Ok(_) => {}
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                Err(error) => return Err(io_error(error)),
             }
         }
     }

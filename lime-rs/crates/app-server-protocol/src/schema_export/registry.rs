@@ -851,6 +851,7 @@ pub(super) fn v2_schemas() -> Vec<GeneratedJsonSchema> {
         typed_schema::<v2::HooksListParams>("HooksListParams"),
         typed_schema::<v2::HooksListResponse>("HooksListResponse"),
         typed_schema::<v2::HooksListEntry>("HooksListEntry"),
+        typed_schema::<v2::HookHandlerMetadata>("HookHandlerMetadata"),
         typed_schema::<v2::HookMetadata>("HookMetadata"),
         typed_schema::<v2::HookErrorInfo>("HookErrorInfo"),
         typed_schema::<v2::HookOutputEntry>("HookOutputEntry"),

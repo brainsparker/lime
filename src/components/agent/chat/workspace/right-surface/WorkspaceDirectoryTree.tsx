@@ -24,6 +24,17 @@ export function WorkspaceDirectoryTree({
   onToggleDirectory: (path: string) => void;
   onSelectFile: (path: string, options?: FileSelectionOptions) => void;
 }) {
+  const filePaths = useMemo(
+    () =>
+      new Set(
+        Object.values(state.directoryCache).flatMap((listing) =>
+          listing.entries
+            .filter((entry) => !entry.isDir)
+            .map((entry) => entry.path),
+        ),
+      ),
+    [state.directoryCache],
+  );
   const rows = useMemo(
     () =>
       getDirectoryTreeRows(
@@ -39,8 +50,10 @@ export function WorkspaceDirectoryTree({
       scope={directoryPath}
       cwd={directoryPath}
       rows={rows}
+      filePaths={filePaths}
       expandedDirectories={expandedDirectories}
       selectedPath={selectedPath}
+      resetKey={state.directoryCache}
       onToggleDirectory={onToggleDirectory}
       onSelectFile={onSelectFile}
     />

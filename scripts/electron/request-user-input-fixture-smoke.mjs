@@ -191,6 +191,9 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
     await Promise.allSettled(rendererMessageReads);
     const snapshot = {
       stage: summary.stage,
+      host: await handle?.page
+        .evaluate(() => window.electronAPI.invoke("app_server_host_diagnostics"))
+        .catch((error) => ({ error: error.message })),
       rendererMessages,
       providerRequests: (fixture?.requests ?? []).map((request) => ({
         path: request.path,
@@ -307,6 +310,21 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
       backendMode: "runtime",
     });
     mainExit = captureMainProcessExit(handle.app.process());
+    summary.mainShutdownOutput = [];
+    for (const stream of [handle.app.process().stdout, handle.app.process().stderr])
+      stream?.on("data", (chunk) => {
+        const output = String(chunk);
+        if (/fixture-quit|Debugger|debugger|App Server shutdown|app-server.*(stop|exit)/u.test(output))
+          summary.mainShutdownOutput.push(output.slice(0, 16000));
+        summary.mainShutdownOutput = summary.mainShutdownOutput.slice(-40);
+      });
+    await handle.app.evaluate(({ app }) => {
+      for (const eventName of ["before-quit", "will-quit", "quit"])
+        app.on(eventName, (event) => process.stdout.write("[fixture-quit]" +
+          JSON.stringify({ event: eventName, at: new Date().toISOString(),
+            prevented: event?.defaultPrevented ?? null,
+            resources: process.getActiveResourcesInfo() }) + "\n"));
+    });
     await handle.app.evaluate(({ BrowserWindow }) => {
       for (const window of BrowserWindow.getAllWindows()) {
         window.webContents.setBackgroundThrottling(false);

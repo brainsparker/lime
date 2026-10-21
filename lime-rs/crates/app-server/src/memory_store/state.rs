@@ -7,6 +7,7 @@ const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS memory_rollout_jobs (
     scope_key TEXT NOT NULL,
     source_path TEXT NOT NULL,
+    source_thread_id TEXT,
     content_hash TEXT NOT NULL,
     source_updated_at TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('pending', 'leased', 'consolidated', 'review')),
@@ -57,6 +58,14 @@ pub(super) struct StageTwoInput {
     pub(super) rollout_slug: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+struct Phase2Candidate {
+    input: StageTwoInput,
+    usage_count: i64,
+    last_usage: Option<i64>,
+    updated_at: i64,
+}
+
 impl MemoryStateStore {
     pub(super) fn stage1_candidates(
         &self,
@@ -79,6 +88,7 @@ impl MemoryStateStore {
             .map_err(|error| format!("collect memory stage1 candidates: {error}"))
     }
 
+    #[cfg(test)]
     pub(super) fn stage2_candidates(
         &self,
         scope_key: &str,
@@ -106,6 +116,97 @@ impl MemoryStateStore {
             .map_err(|error| format!("collect memory stage2 candidates: {error}"))
     }
 
+    #[cfg(test)]
+    pub(super) fn phase2_inputs(
+        &self,
+        scope_key: &str,
+        limit: usize,
+    ) -> Result<Vec<StageTwoInput>, String> {
+        let conn = self.open()?;
+        let mut statement = conn.prepare(
+            "SELECT source_path, source_updated_at, content_hash, output_raw_memory, output_rollout_summary, output_rollout_slug FROM memory_rollout_jobs WHERE scope_key = ?1 AND (status = 'pending' OR selected_for_phase2 = 1) AND (output_raw_memory IS NOT NULL OR output_rollout_summary IS NOT NULL) ORDER BY (status = 'pending') DESC, updated_at DESC, source_path LIMIT ?2"
+        ).map_err(|e| format!("prepare phase2 inputs: {e}"))?;
+        let rows = statement
+            .query_map(params![scope_key, limit.max(1) as i64], |row| {
+                Ok(StageTwoInput {
+                    source_path: row.get(0)?,
+                    source_updated_at: row.get(1)?,
+                    content_hash: row.get(2)?,
+                    raw_memory: row.get(3)?,
+                    rollout_summary: row.get(4)?,
+                    rollout_slug: row.get(5)?,
+                })
+            })
+            .map_err(|e| format!("read phase2 inputs: {e}"))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("collect phase2 inputs: {e}"))
+    }
+
+    /// Selects the phase-2 snapshot using Codex's usage feedback policy:
+    /// recently used memories win, never-used sources remain eligible while fresh,
+    /// and stale rows are excluded from a new consolidation pass.
+    pub(super) fn phase2_inputs_for_consolidation(
+        &self,
+        scope_key: &str,
+        limit: usize,
+        max_unused_days: i64,
+    ) -> Result<Vec<StageTwoInput>, String> {
+        let conn = self.open()?;
+        let mut statement = conn
+            .prepare(
+                "SELECT source_path, source_updated_at, content_hash, output_raw_memory, output_rollout_summary, output_rollout_slug, status, usage_count, last_usage, updated_at FROM memory_rollout_jobs WHERE scope_key = ?1 AND (status = 'pending' OR selected_for_phase2 = 1) AND (output_raw_memory IS NOT NULL OR output_rollout_summary IS NOT NULL)",
+            )
+            .map_err(|error| format!("prepare phase2 selection: {error}"))?;
+        let rows = statement
+            .query_map(params![scope_key], |row| {
+                Ok(Phase2Candidate {
+                    input: StageTwoInput {
+                        source_path: row.get(0)?,
+                        source_updated_at: row.get(1)?,
+                        content_hash: row.get(2)?,
+                        raw_memory: row.get(3)?,
+                        rollout_summary: row.get(4)?,
+                        rollout_slug: row.get(5)?,
+                    },
+                    usage_count: row.get(7)?,
+                    last_usage: row.get(8)?,
+                    updated_at: row.get(9)?,
+                })
+            })
+            .map_err(|error| format!("read phase2 selection: {error}"))?;
+        let now = now_seconds();
+        let cutoff = now.saturating_sub(max_unused_days.max(0).saturating_mul(86_400));
+        let mut candidates = rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("collect phase2 selection: {error}"))?
+            .into_iter()
+            .filter_map(|candidate| {
+                let source_time = parse_source_timestamp(&candidate.input.source_updated_at)
+                    .unwrap_or(candidate.updated_at);
+                let recency = candidate.last_usage.unwrap_or(source_time);
+                (recency >= cutoff).then_some((recency, candidate))
+            })
+            .collect::<Vec<_>>();
+        candidates.sort_by(|(left_recency, left), (right_recency, right)| {
+            right
+                .usage_count
+                .cmp(&left.usage_count)
+                .then_with(|| right_recency.cmp(left_recency))
+                .then_with(|| {
+                    right
+                        .input
+                        .source_updated_at
+                        .cmp(&left.input.source_updated_at)
+                })
+                .then_with(|| right.input.source_path.cmp(&left.input.source_path))
+        });
+        Ok(candidates
+            .into_iter()
+            .take(limit.max(1))
+            .map(|(_, candidate)| candidate.input)
+            .collect())
+    }
+
     pub(super) fn new(data_root: &Path) -> Self {
         Self {
             path: data_root.join("memory_state.sqlite"),
@@ -123,13 +224,15 @@ impl MemoryStateStore {
     ) -> Result<(), String> {
         let now = now_seconds();
         let content_hash = hash_content(content);
+        let source_thread_id = source_thread_id_from_content(content);
         let conn = self.open()?;
         conn.execute(
             r#"
             INSERT INTO memory_rollout_jobs
-                (scope_key, source_path, content_hash, source_updated_at, status, updated_at)
-            VALUES (?1, ?2, ?3, ?4, 'pending', ?5)
+                (scope_key, source_path, source_thread_id, content_hash, source_updated_at, status, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, 'pending', ?6)
             ON CONFLICT(scope_key, source_path) DO UPDATE SET
+                source_thread_id = excluded.source_thread_id,
                 content_hash = excluded.content_hash,
                 source_updated_at = excluded.source_updated_at,
                 status = 'pending',
@@ -146,8 +249,9 @@ impl MemoryStateStore {
                 updated_at = excluded.updated_at
             WHERE memory_rollout_jobs.content_hash != excluded.content_hash
                OR memory_rollout_jobs.source_updated_at != excluded.source_updated_at
+               OR COALESCE(memory_rollout_jobs.source_thread_id, '') != COALESCE(excluded.source_thread_id, '')
             "#,
-            params![scope_key, source_path, content_hash, source_updated_at, now],
+            params![scope_key, source_path, source_thread_id, content_hash, source_updated_at, now],
         )
         .map_err(|error| format!("register memory rollout: {error}"))?;
         Ok(())
@@ -300,6 +404,7 @@ impl MemoryStateStore {
         conn.execute_batch(SCHEMA)
             .map_err(|error| format!("initialize memory state schema: {error}"))?;
         ensure_column(&conn, "memory_rollout_jobs", "retry_at", "INTEGER")?;
+        ensure_column(&conn, "memory_rollout_jobs", "source_thread_id", "TEXT")?;
         ensure_column(
             &conn,
             "memory_rollout_jobs",
@@ -590,6 +695,25 @@ impl MemoryStateStore {
         Ok(updated)
     }
 
+    pub(super) fn record_stage1_usage_for_thread_ids(
+        &self,
+        scope_key: &str,
+        thread_ids: &[&str],
+    ) -> Result<usize, String> {
+        let now = now_seconds();
+        let conn = self.open()?;
+        let mut updated = 0;
+        for thread_id in thread_ids {
+            updated += conn
+                .execute(
+                    "UPDATE memory_rollout_jobs SET usage_count = usage_count + 1, last_usage = ?1, updated_at = ?1 WHERE scope_key = ?2 AND source_thread_id = ?3",
+                    params![now, scope_key, thread_id],
+                )
+                .map_err(|error| format!("record memory citation usage: {error}"))?;
+        }
+        Ok(updated)
+    }
+
     /// Commit only the selected source versions, matching Codex's stage-1 snapshot identity.
     /// A newer extraction at the same path remains pending for the next phase-2 run.
     pub(super) fn commit_phase2_snapshot(
@@ -641,34 +765,6 @@ impl MemoryStateStore {
             .map_err(|error| format!("commit memory phase2 snapshot: {error}"))?;
         Ok(true)
     }
-
-    pub(super) fn mark_stage2_review(
-        &self,
-        scope_key: &str,
-        snapshot: &StageTwoInput,
-    ) -> Result<bool, String> {
-        self.open()?
-            .execute(
-                "UPDATE memory_rollout_jobs SET status = 'review', lease_owner = NULL, lease_expires_at = NULL, updated_at = ?1 WHERE scope_key = ?2 AND source_path = ?3 AND source_updated_at = ?4 AND content_hash = ?5",
-                params![now_seconds(), scope_key, snapshot.source_path, snapshot.source_updated_at, snapshot.content_hash],
-            )
-            .map(|changed| changed > 0)
-            .map_err(|error| format!("mark memory stage2 snapshot for review: {error}"))
-    }
-
-    pub(super) fn stage2_snapshot_is_current(
-        &self,
-        scope_key: &str,
-        snapshot: &StageTwoInput,
-    ) -> Result<bool, String> {
-        self.open()?
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM memory_rollout_jobs WHERE scope_key = ?1 AND source_path = ?2 AND source_updated_at = ?3 AND content_hash = ?4)",
-                params![scope_key, snapshot.source_path, snapshot.source_updated_at, snapshot.content_hash],
-                |row| row.get(0),
-            )
-            .map_err(|error| format!("check memory stage2 snapshot identity: {error}"))
-    }
 }
 
 fn ensure_column(
@@ -705,6 +801,29 @@ fn now_seconds() -> i64 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs() as i64)
         .unwrap_or_default()
+}
+
+fn parse_source_timestamp(value: &str) -> Option<i64> {
+    value.trim().parse::<i64>().ok().or_else(|| {
+        chrono::DateTime::parse_from_rfc3339(value.trim())
+            .ok()
+            .map(|date| date.timestamp())
+    })
+}
+
+fn source_thread_id_from_content(content: &str) -> Option<String> {
+    content.lines().find_map(|line| {
+        let (key, value) = line.split_once(':')?;
+        let key = key.trim().trim_start_matches('-').trim();
+        if !matches!(
+            key,
+            "threadId" | "thread_id" | "sourceThreadId" | "source_thread_id"
+        ) {
+            return None;
+        }
+        let value = value.trim().trim_matches('`').trim();
+        (!value.is_empty()).then(|| value.to_string())
+    })
 }
 
 #[cfg(test)]

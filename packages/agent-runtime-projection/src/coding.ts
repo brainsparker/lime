@@ -239,7 +239,7 @@ export interface ChangeSummaryView {
 }
 
 export interface CodingLocalUiState {
-  preferredTab: "preview" | "files" | "changes" | "outputs" | "logs";
+  preferredTab: "preview" | "files" | "changes" | "summary";
   stale: boolean;
 }
 
@@ -1393,8 +1393,8 @@ function preferredTab(view: {
   commands: CommandOutputView[];
   tests: TestRunView[];
 }): CodingLocalUiState["preferredTab"] {
-  if (view.tests.some((test) => test.status === "failed")) return "outputs";
-  if (view.commands.length) return "outputs";
+  if (view.tests.some((test) => test.status === "failed")) return "summary";
+  if (view.commands.length) return "summary";
   if (view.changes.length) return "changes";
   return "preview";
 }

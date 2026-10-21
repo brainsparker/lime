@@ -8,7 +8,6 @@ import type {
   CanvasWorkbenchNewToolTab,
   CanvasWorkbenchSessionView,
   CanvasWorkbenchTab,
-  CanvasWorkbenchUtilityView,
 } from "../CanvasWorkbenchLayout";
 import { resolveCanvasWorkbenchToolTabKind } from "./CanvasWorkbenchLayoutState";
 import type { HarnessFilePreviewResult } from "../HarnessStatusPanel";
@@ -26,7 +25,6 @@ import {
   type CanvasWorkbenchNewTabAction,
   type CanvasWorkbenchTopTab,
 } from "./tabs/CanvasWorkbenchTopTabs";
-import { CanvasWorkbenchUtilityPanel } from "./CanvasWorkbenchUtilityPanel";
 import {
   CanvasWorkbenchWorkspacePanel,
   type CanvasWorkbenchWorkspacePanelProps,
@@ -80,8 +78,6 @@ interface CanvasWorkbenchShellProps {
   loadingDirectories: Record<string, boolean>;
   workspacePanelCopy?: CanvasWorkbenchWorkspacePanelProps["panelCopy"];
   locale: string;
-  outputView?: CanvasWorkbenchUtilityView | null;
-  logView?: CanvasWorkbenchUtilityView | null;
   sessionView?: CanvasWorkbenchSessionView | null;
   shellClassName: string;
   panelClassName: string;
@@ -169,8 +165,6 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
   loadingDirectories,
   workspacePanelCopy,
   locale,
-  outputView,
-  logView,
   sessionView,
   shellClassName,
   panelClassName,
@@ -377,22 +371,23 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
             filesPanelOpen={changesFilesPanelOpen}
             onToggleFilesPanel={onToggleChangesFilesPanel}
           />
-        ) : contentTab === "outputs" ? (
-          <CanvasWorkbenchUtilityPanel
-            view={outputView || sessionView}
-            testId="canvas-workbench-panel-outputs"
-            fallbackTextKey="agentChat.canvasWorkbench.coding.outputs.empty"
-            mutedPanelClassName={mutedPanelClassName}
-            translateWorkbench={translateWorkbench}
-          />
-        ) : contentTab === "logs" ? (
-          <CanvasWorkbenchUtilityPanel
-            view={logView}
-            testId="canvas-workbench-panel-logs"
-            fallbackTextKey="agentChat.canvasWorkbench.coding.logs.empty"
-            mutedPanelClassName={mutedPanelClassName}
-            translateWorkbench={translateWorkbench}
-          />
+        ) : contentTab === "summary" ? (
+          <div
+            data-testid="canvas-workbench-panel-summary"
+            className="flex h-full min-h-0 flex-col overflow-hidden bg-white"
+          >
+            {sessionView?.renderPanel ? (
+              <div className="min-h-0 flex-1 overflow-hidden">
+                {sessionView.renderPanel()}
+              </div>
+            ) : (
+              <div className="p-5">
+                <div className={mutedPanelClassName}>
+                  {translateWorkbench("agentChat.canvasWorkbench.workspace.empty")}
+                </div>
+              </div>
+            )}
+          </div>
         ) : contentToolTabKind === "terminal" ? null : (
           workspacePanel
         )}

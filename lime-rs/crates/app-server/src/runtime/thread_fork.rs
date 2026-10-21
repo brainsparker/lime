@@ -16,10 +16,16 @@ use uuid::Uuid;
 use super::{RuntimeCore, RuntimeCoreError, StoredSession};
 
 mod compaction;
+mod history;
 mod hydration;
+use history::{fork_compaction_payload, merge_fork_history_seed};
+pub(in crate::runtime) use history::{fork_history_seed_events, merge_fork_history_events};
+mod media;
 mod model_history;
 mod settings;
+mod source;
 
+use media::{clear_fork_sidecar, copy_fork_input_media, inline_ephemeral_fork_media};
 use settings::{fork_thread_snapshot, validate_fork_params};
 
 #[cfg(test)]
@@ -42,31 +48,33 @@ impl RuntimeCore {
         params: ThreadForkParams,
     ) -> Result<Thread, RuntimeCoreError> {
         validate_fork_params(&params)?;
-        let source_thread_id = ThreadId::new(params.thread_id.trim().to_string());
         let store = self.projection_store.as_deref().ok_or_else(|| {
             RuntimeCoreError::Backend("canonical thread store is unavailable".to_string())
         })?;
-        let source = store
-            .read_thread(ReadThreadParams {
-                thread_id: source_thread_id.clone(),
-                include_archived: true,
-                turns_view: ThreadTurnsView::Full,
-            })
-            .await
-            .map_err(store_error)?
-            .ok_or_else(|| {
-                RuntimeCoreError::Backend(format!("thread not found: {source_thread_id}"))
-            })?;
+        let (source, source_history) = self.read_fork_source(&params).await?;
+        let source_thread_id = source.thread_id.clone();
+        if source.archived {
+            return Err(invalid(format!(
+                "thread/fork cannot fork archived thread {source_thread_id}"
+            )));
+        }
+        if params.ephemeral
+            && !params.exclude_turns
+            && source
+                .metadata
+                .get("historyMode")
+                .or_else(|| source.metadata.get("history_mode"))
+                .and_then(Value::as_str)
+                == Some("paginated")
+        {
+            return Err(invalid(
+                "ephemeral paginated thread/fork requires excludeTurns: true",
+            ));
+        }
         let source_session_id = source.session_id.as_str().to_string();
-        self.hydrate_thread_session(&source).await?;
         let source_stored = self
-            .state
-            .lock()
-            .expect("runtime core state mutex poisoned")
-            .sessions
-            .get(&source_session_id)
-            .cloned()
-            .ok_or_else(|| RuntimeCoreError::SessionNotFound(source_session_id.clone()))?;
+            .load_fork_source_session(&source, source_history)
+            .await?;
         let target_thread_id = Uuid::now_v7().to_string();
         let target_session_id = target_thread_id.clone();
         let mut history = fork_history(&source, &params, &target_session_id, &target_thread_id)?;
@@ -109,7 +117,10 @@ impl RuntimeCore {
             &target_session_id,
             &target_thread_id,
             now_ms,
-            &params,
+            &ThreadForkParams {
+                thread_id: source_thread_id.as_str().to_string(),
+                ..params.clone()
+            },
             history_sequence,
         )?;
         let mut target_stored = fork_stored_session(
@@ -135,6 +146,42 @@ impl RuntimeCore {
         durable_events.extend(token_usage_event);
         target_stored.events = merge_fork_history_events(target_stored.events, durable_events)?;
 
+        // Codex ephemeral forks share the same in-memory thread/runtime owner but do not create
+        // a projection, rollout, event-log, or sidecar record.  Keep the canonical history seed
+        // in the loaded session so the first turn sees the exact forked model context.
+        if params.ephemeral {
+            inline_ephemeral_fork_media(
+                &mut history,
+                &mut target_stored,
+                self.sidecar_store.as_deref(),
+                &source_session_id,
+            )?;
+            let mut target = target;
+            if params.exclude_turns {
+                target.turns.clear();
+                target.turns_view = ThreadTurnsView::NotLoaded;
+            } else if let Some(changes) = history.changes.as_ref() {
+                let mut builder = thread_store::ThreadHistoryBuilder::for_thread(
+                    target.session_id.clone(),
+                    target.thread_id.clone(),
+                );
+                builder
+                    .apply_change_set(changes.clone())
+                    .map_err(|error| invalid(error.to_string()))?;
+                target.turns = builder.turns().to_vec();
+                for turn in &mut target.turns {
+                    turn.items_view = agent_protocol::TurnItemsView::Full;
+                }
+                target.turns_view = ThreadTurnsView::Full;
+            }
+            self.state
+                .lock()
+                .expect("runtime core state mutex poisoned")
+                .sessions
+                .insert(target_session_id, target_stored);
+            return Ok(target);
+        }
+
         let copy_media_result = copy_fork_input_media(
             &history,
             self.sidecar_store.as_deref(),
@@ -157,14 +204,23 @@ impl RuntimeCore {
             return Err(error);
         }
         let persist_result = async {
-            if let Some(changes) = history.changes.clone() {
+            if let Some(mut changes) = history.changes.clone() {
+                changes.sequence = changes.sequence.max(
+                    target_stored
+                        .events
+                        .last()
+                        .map_or(0, |event| event.sequence),
+                );
                 store
-                    .apply_history(ApplyThreadHistoryParams {
-                        session_id: SessionId::new(target_session_id.clone()),
-                        thread_id: ThreadId::new(target_thread_id.clone()),
-                        changes,
-                    })
-                    .await
+                    .apply_history_with_runtime_sync(
+                        ApplyThreadHistoryParams {
+                            session_id: SessionId::new(target_session_id.clone()),
+                            thread_id: ThreadId::new(target_thread_id.clone()),
+                            changes,
+                        },
+                        &target_stored.events,
+                        self.sidecar_store.as_deref(),
+                    )
                     .map_err(store_error)?;
             }
             if params.defer_goal_continuation {
@@ -209,37 +265,6 @@ impl RuntimeCore {
                     "forked thread disappeared after creation: {target_thread_id}"
                 ))
             })
-    }
-}
-
-fn copy_fork_input_media(
-    history: &ForkHistory,
-    sidecar_store: Option<&super::SidecarStore>,
-    source_session_id: &str,
-    target_session_id: &str,
-) -> Result<(), RuntimeCoreError> {
-    for item in history
-        .changes
-        .iter()
-        .flat_map(|changes| changes.changed_items.iter())
-    {
-        let ThreadItemPayload::UserMessage { content, .. } = &item.payload else {
-            continue;
-        };
-        super::input_media::copy_canonical_input_media_for_fork(
-            content,
-            sidecar_store,
-            source_session_id,
-            target_session_id,
-        )
-        .map_err(RuntimeCoreError::Backend)?;
-    }
-    Ok(())
-}
-
-fn clear_fork_sidecar(sidecar_store: Option<&super::SidecarStore>, target_session_id: &str) {
-    if let Some(store) = sidecar_store {
-        let _ = store.clear_session(target_session_id);
     }
 }
 
@@ -637,10 +662,18 @@ fn fork_stored_session(
     source.session.status = AgentSessionStatus::Idle;
     source.session.created_at = super::value_fields::timestamp();
     source.session.updated_at = source.session.created_at.clone();
-    if let Some(reference) = source.session.business_object_ref.as_mut() {
-        reference.id = target_thread_id.to_string();
-        reference.metadata = Some(metadata.clone());
-    }
+    let reference = source
+        .session
+        .business_object_ref
+        .get_or_insert_with(|| BusinessObjectRef {
+            kind: "agent.thread".to_string(),
+            id: target_thread_id.to_string(),
+            title: None,
+            uri: None,
+            metadata: None,
+        });
+    reference.id = target_thread_id.to_string();
+    reference.metadata = Some(metadata.clone());
     source.turns.retain(|turn| turn_ids.contains(&turn.turn_id));
     for turn in &mut source.turns {
         turn.session_id = target_session_id.to_string();
@@ -682,189 +715,6 @@ fn fork_stored_session(
     model_history::copy_model_records(&mut source, model_history, turn_ids, history_sequence)?;
     source.output_blobs.clear();
     Ok(source)
-}
-
-pub(in crate::runtime) fn fork_history_seed_events(
-    session: &AgentSession,
-    canonical_turns: &[Turn],
-    canonical_items: &[ThreadItem],
-    through_sequence: u64,
-) -> Result<Vec<AgentEvent>, RuntimeCoreError> {
-    let mut turns_by_id = BTreeMap::new();
-    for turn in canonical_turns {
-        if turns_by_id
-            .insert(turn.turn_id.as_str().to_string(), turn)
-            .is_some()
-        {
-            return Err(invalid(format!(
-                "thread/fork canonical history has duplicate turn {}",
-                turn.turn_id
-            )));
-        }
-    }
-    let mut items_by_sequence = BTreeMap::new();
-    for item in canonical_items {
-        validate_fork_canonical_item(item)?;
-        if item.sequence == 0 || item.sequence > through_sequence {
-            return Err(invalid(format!(
-                "thread/fork canonical item {} has invalid sequence {} through {}",
-                item.item_id, item.sequence, through_sequence
-            )));
-        }
-        if items_by_sequence.insert(item.sequence, item).is_some() {
-            return Err(invalid(format!(
-                "thread/fork canonical history has duplicate item sequence {}",
-                item.sequence
-            )));
-        }
-        if !turns_by_id.contains_key(item.turn_id.as_str()) {
-            return Err(invalid(format!(
-                "thread/fork canonical item {} has no owning turn",
-                item.item_id
-            )));
-        }
-    }
-    for turn in canonical_turns {
-        if !canonical_items
-            .iter()
-            .any(|item| item.turn_id == turn.turn_id)
-        {
-            return Err(invalid(format!(
-                "thread/fork cannot preserve turn {} without canonical items",
-                turn.turn_id
-            )));
-        }
-    }
-
-    (1..=through_sequence)
-        .map(|sequence| {
-            let item = items_by_sequence.get(&sequence).copied();
-            let timestamp = item
-                .and_then(|item| {
-                    chrono::Utc
-                        .timestamp_millis_opt(item.updated_at_ms)
-                        .single()
-                        .map(|value| value.to_rfc3339())
-                })
-                .unwrap_or_else(|| session.updated_at.clone());
-            let (event_type, payload) = item.map_or_else(
-                || ("thread.fork.baseline".to_string(), Value::Null),
-                |item| {
-                    let mut turn = (*turns_by_id
-                        .get(item.turn_id.as_str())
-                        .expect("canonical item turn was validated"))
-                    .clone();
-                    turn.items.clear();
-                    if let Some(mut payload) = fork_compaction_payload(item) {
-                        payload["forkTurn"] = serde_json::to_value(turn)
-                            .expect("validated canonical turn must serialize");
-                        return ("context.compaction.completed".to_string(), payload);
-                    }
-                    (
-                        FORK_CANONICAL_ITEM_EVENT_TYPE.to_string(),
-                        serde_json::json!({ "item": item, "forkTurn": turn }),
-                    )
-                },
-            );
-            Ok(AgentEvent {
-                event_id: format!("evt-thread-fork-baseline-{}-{sequence}", session.session_id),
-                sequence,
-                session_id: session.session_id.clone(),
-                thread_id: Some(session.thread_id.clone()),
-                turn_id: item.map(|item| item.turn_id.as_str().to_string()),
-                event_type,
-                timestamp,
-                payload,
-            })
-        })
-        .collect()
-}
-
-fn fork_compaction_payload(item: &ThreadItem) -> Option<Value> {
-    let ThreadItemPayload::ContextCompaction {
-        summary,
-        replacement_history,
-        window_number,
-        first_window_id,
-        previous_window_id,
-        window_id,
-        covered_through_sequence,
-    } = &item.payload
-    else {
-        return None;
-    };
-    Some(serde_json::json!({
-        "itemId": item.item_id.as_str(),
-        "summary": summary,
-        "replacementHistory": replacement_history,
-        "windowNumber": window_number,
-        "firstWindowId": first_window_id,
-        "previousWindowId": previous_window_id,
-        "windowId": window_id,
-        "coveredThroughSequence": covered_through_sequence,
-    }))
-}
-
-fn merge_fork_history_seed(
-    stored: &mut StoredSession,
-    seed: Vec<AgentEvent>,
-) -> Result<(), RuntimeCoreError> {
-    stored.events = merge_fork_history_events(seed, std::mem::take(&mut stored.events))?;
-    Ok(())
-}
-
-pub(in crate::runtime) fn merge_fork_history_events(
-    seed: Vec<AgentEvent>,
-    mut existing: Vec<AgentEvent>,
-) -> Result<Vec<AgentEvent>, RuntimeCoreError> {
-    let prefix_len = seed.len();
-    let mut merged = seed;
-    existing.sort_by_key(|event| event.sequence);
-
-    for event in existing {
-        let sequence = usize::try_from(event.sequence)
-            .map_err(|_| invalid("thread/fork event sequence does not fit in memory"))?;
-        if sequence == 0 {
-            return Err(invalid("thread/fork event sequence must start at one"));
-        }
-        if sequence <= prefix_len {
-            let canonical = &merged[sequence - 1];
-            if canonical.event_type == "thread.fork.baseline"
-                && (event.event_type == agent_runtime::model_history::MODEL_HISTORY_EVENT_TYPE
-                    || (event.event_type == "context.compaction.completed"
-                        && event.turn_id.is_none())
-                    || event.event_type == FORK_INTERRUPTED_MARKER_EVENT_TYPE
-                    || (event.event_type == "turn.canceled"
-                        && event.payload.get("forkSnapshot").and_then(Value::as_bool)
-                            == Some(true)))
-            {
-                merged[sequence - 1] = event;
-                continue;
-            }
-            if canonical.sequence != event.sequence
-                || canonical.event_id != event.event_id
-                || canonical.session_id != event.session_id
-                || canonical.thread_id != event.thread_id
-                || canonical.turn_id != event.turn_id
-                || canonical.event_type != event.event_type
-                || canonical.payload != event.payload
-            {
-                return Err(invalid(format!(
-                    "thread/fork canonical seed conflicts at sequence {}: canonical={canonical:?}, existing={event:?}",
-                    event.sequence,
-                )));
-            }
-            continue;
-        }
-        let expected = merged.len() + 1;
-        if sequence != expected {
-            return Err(invalid(format!(
-                "thread/fork target EventLog is not contiguous: expected {expected}, got {sequence}"
-            )));
-        }
-        merged.push(event);
-    }
-    Ok(merged)
 }
 
 fn session_status(status: &ThreadStatus) -> AgentSessionStatus {

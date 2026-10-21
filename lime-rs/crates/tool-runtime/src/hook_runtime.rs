@@ -8,11 +8,14 @@ use crate::turn_snapshot::{RuntimeHookEventName, RuntimeHookExecutionMode, Runti
 use agent_protocol::hook::{HookOutputEntry, HookOutputEntryKind, HookRunStatus, HookRunSummary};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::future::Future;
 use std::path::Path;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::process::Command;
 
+mod interrupt;
 mod stop;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,10 +39,27 @@ pub trait AsyncHookResultSink: Send + Sync {
     fn submit(&self, run: HookRunSummary);
 }
 
+/// Thread-scoped MCP owner used by MCP hooks. The hook runtime only owns
+/// lifecycle and output parsing; the AgentRuntimeState remains the MCP owner.
+pub struct McpHookOutput {
+    pub stdout: String,
+    pub is_error: bool,
+}
+
+pub trait McpHookExecutor: Send + Sync {
+    fn execute<'a>(
+        &'a self,
+        server: &'a str,
+        tool: &'a str,
+        input: serde_json::Value,
+    ) -> Pin<Box<dyn Future<Output = Result<McpHookOutput, String>> + Send + 'a>>;
+}
+
 pub struct CommandHookReporter {
     hooks_by_key: HashMap<String, DiscoveredHook>,
     emitter: Arc<dyn HookLifecycleEmitter>,
     async_result_sink: Option<Arc<dyn AsyncHookResultSink>>,
+    mcp_executor: Option<Arc<dyn McpHookExecutor>>,
 }
 
 impl CommandHookReporter {
@@ -55,11 +75,17 @@ impl CommandHookReporter {
                 .collect(),
             emitter,
             async_result_sink: None,
+            mcp_executor: None,
         }
     }
 
     pub fn with_async_result_sink(mut self, sink: Arc<dyn AsyncHookResultSink>) -> Self {
         self.async_result_sink = Some(sink);
+        self
+    }
+
+    pub fn with_mcp_executor(mut self, executor: Arc<dyn McpHookExecutor>) -> Self {
+        self.mcp_executor = Some(executor);
         self
     }
 }
@@ -74,6 +100,7 @@ impl RuntimeHookReporter for CommandHookReporter {
         let hook = self.hooks_by_key.get(&snapshot.key).cloned();
         let emitter = Arc::clone(&self.emitter);
         let async_result_sink = self.async_result_sink.clone();
+        let mcp_executor = self.mcp_executor.clone();
         let context = context.clone();
         Box::pin(async move {
             let hook = hook?;
@@ -83,6 +110,77 @@ impl RuntimeHookReporter for CommandHookReporter {
                 turn_id: context.turn_id.clone(),
                 run: run.clone(),
             });
+
+            if hook.snapshot.handler_type == agent_protocol::hook::HookHandlerType::McpTool {
+                let Some(executor) = mcp_executor else {
+                    let report = RuntimeHookHandlerReport::Failed {
+                        reason: "MCP hook runtime is unavailable".to_string(),
+                    };
+                    run.status = status_for_report(&report);
+                    run.completed_at = Some(chrono::Utc::now().timestamp());
+                    run.duration_ms = Some(0);
+                    run.entries = entries_for_report(&report);
+                    emitter.emit(HookLifecycleEvent {
+                        phase: HookLifecyclePhase::Completed,
+                        turn_id: context.turn_id.clone(),
+                        run,
+                    });
+                    return Some(report);
+                };
+                let server = hook.snapshot.mcp_server.clone().unwrap_or_default();
+                let tool = hook.snapshot.mcp_tool.clone().unwrap_or_default();
+                let input = match mcp_hook_input(&hook, &context) {
+                    Ok(input) => input,
+                    Err(error) => {
+                        let report = RuntimeHookHandlerReport::Failed { reason: error };
+                        run.status = status_for_report(&report);
+                        run.completed_at = Some(chrono::Utc::now().timestamp());
+                        run.duration_ms = Some(0);
+                        run.entries = entries_for_report(&report);
+                        emitter.emit(HookLifecycleEvent {
+                            phase: HookLifecyclePhase::Completed,
+                            turn_id: context.turn_id.clone(),
+                            run,
+                        });
+                        return Some(report);
+                    }
+                };
+                let started = Instant::now();
+                let result = tokio::time::timeout(
+                    Duration::from_secs(hook.snapshot.timeout_sec),
+                    executor.execute(&server, &tool, input),
+                )
+                .await;
+                let report = match result {
+                    Ok(Ok(output)) => {
+                        command_report(
+                            &hook,
+                            &HookCommandOutput {
+                                success: !output.is_error,
+                                exit_code: Some(if output.is_error { 1 } else { 0 }),
+                                stdout: output.stdout,
+                                stderr: String::new(),
+                                timed_out: false,
+                            },
+                        )
+                        .report
+                    }
+                    Ok(Err(error)) => RuntimeHookHandlerReport::Failed { reason: error },
+                    Err(_) => RuntimeHookHandlerReport::Failed {
+                        reason: format!("MCP hook timed out after {}s", hook.snapshot.timeout_sec),
+                    },
+                };
+                run.status = status_for_report(&report);
+                run.completed_at = Some(chrono::Utc::now().timestamp());
+                run.duration_ms = Some(started.elapsed().as_millis().min(i64::MAX as u128) as i64);
+                run.entries = entries_for_report(&report);
+                emitter.emit(HookLifecycleEvent {
+                    phase: HookLifecyclePhase::Completed,
+                    turn_id: context.turn_id.clone(),
+                    run,
+                });
+                return Some(report);
+            }
 
             if hook.snapshot.execution_mode == RuntimeHookExecutionMode::Async {
                 let turn_id = context.turn_id.clone();
@@ -197,6 +295,9 @@ struct CommandHookReport {
 }
 
 fn command_report(hook: &DiscoveredHook, output: &HookCommandOutput) -> CommandHookReport {
+    if hook.snapshot.event_name == RuntimeHookEventName::Interrupt {
+        return interrupt::parse_output(output);
+    }
     if stop::is_stop(hook.snapshot.event_name) {
         return stop::parse_output(hook, output);
     }
@@ -405,8 +506,29 @@ fn command_input(
     hook: &DiscoveredHook,
     context: &RuntimeHookEventContext,
 ) -> Result<serde_json::Value, String> {
+    if hook.snapshot.event_name == RuntimeHookEventName::Interrupt {
+        return interrupt::command_input(context);
+    }
     if stop::is_stop(hook.snapshot.event_name) {
         return stop::command_input(hook.snapshot.event_name, context);
+    }
+    if matches!(
+        hook.snapshot.event_name,
+        RuntimeHookEventName::PreCompact | RuntimeHookEventName::PostCompact
+    ) {
+        let compact = context
+            .compact
+            .as_ref()
+            .ok_or_else(|| "compaction hook context is missing".to_string())?;
+        return Ok(serde_json::json!({
+            "session_id": context.session_id,
+            "turn_id": context.turn_id,
+            "cwd": context.working_directory,
+            "hook_event_name": event_config_label(hook.snapshot.event_name),
+            "model": compact.model,
+            "trigger": compact.trigger,
+            "transcript_path": compact.transcript_path,
+        }));
     }
     let tool_input = context
         .tool_arguments
@@ -430,6 +552,50 @@ fn command_input(
     }))
 }
 
+fn mcp_hook_input(
+    hook: &DiscoveredHook,
+    context: &RuntimeHookEventContext,
+) -> Result<serde_json::Value, String> {
+    let template = hook
+        .snapshot
+        .mcp_input
+        .clone()
+        .unwrap_or_else(|| serde_json::json!({}));
+    let event = command_input(hook, context)?;
+    expand_mcp_value(&template, &event)
+}
+
+fn expand_mcp_value(
+    value: &serde_json::Value,
+    event: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    match value {
+        serde_json::Value::Object(map) => map
+            .iter()
+            .map(|(key, value)| Ok((key.clone(), expand_mcp_value(value, event)?)))
+            .collect::<Result<serde_json::Map<_, _>, String>>()
+            .map(serde_json::Value::Object),
+        serde_json::Value::Array(values) => values
+            .iter()
+            .map(|value| expand_mcp_value(value, event))
+            .collect::<Result<Vec<_>, _>>()
+            .map(serde_json::Value::Array),
+        serde_json::Value::String(text) => {
+            let Some(path) = text
+                .strip_prefix("${")
+                .and_then(|value| value.strip_suffix('}'))
+            else {
+                return Ok(value.clone());
+            };
+            event
+                .pointer(&format!("/{}", path.replace('.', "/")))
+                .cloned()
+                .ok_or_else(|| format!("MCP hook input placeholder `${{{path}}}` was not found"))
+        }
+        _ => Ok(value.clone()),
+    }
+}
+
 fn event_config_label(event_name: RuntimeHookEventName) -> &'static str {
     match event_name {
         RuntimeHookEventName::PreToolUse => "PreToolUse",
@@ -443,6 +609,7 @@ fn event_config_label(event_name: RuntimeHookEventName) -> &'static str {
         RuntimeHookEventName::SubagentStart => "SubagentStart",
         RuntimeHookEventName::SubagentStop => "SubagentStop",
         RuntimeHookEventName::Stop => "Stop",
+        RuntimeHookEventName::Interrupt => "Interrupt",
     }
 }
 

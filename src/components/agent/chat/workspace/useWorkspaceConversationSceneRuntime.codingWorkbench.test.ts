@@ -41,37 +41,11 @@ describe("useWorkspaceConversationSceneRuntime coding workbench projection", () 
     const sceneProps = getRenderedSceneProps(params);
     const workspaceView = sceneProps.canvasWorkbenchLayoutProps.workspaceView;
 
-    expect(workspaceView?.title).toBe("项目工作区文件");
-    expect(workspaceView?.tabLabel).toBe("文件");
-    expect(workspaceView?.tabBadge).toBe("demo-project");
-    expect(workspaceView?.tabBadgeTone).toBe("sky");
-    expect(workspaceView?.badges).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: "workspace-root",
-          label: "demo-project",
-        }),
-      ]),
-    );
-    expect(workspaceView?.summaryStats).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: "workspace-root",
-          label: "工作区",
-          value: "demo-project",
-        }),
-        expect.objectContaining({
-          key: "workspace-binding",
-          label: "目录状态",
-          value: "已连接",
-        }),
-      ]),
-    );
     expect(workspaceView?.panelCopy).toEqual(
       expect.objectContaining({
         unavailableText: "当前工作区路径不可用，暂时无法浏览项目文件。",
-        emptyText: "当前会话没有绑定可浏览的工作区目录。",
-        sectionEyebrow: "项目目录",
+        emptyText: "当前工作区 demo-project 没有可浏览的文件。",
+        sectionEyebrow: undefined,
       }),
     );
   });
@@ -88,18 +62,16 @@ describe("useWorkspaceConversationSceneRuntime coding workbench projection", () 
     expect(sceneProps.canvasWorkbenchLayoutProps.workspaceRoot).toBe(
       "/tmp/project-record-root",
     );
-    expect(sceneProps.canvasWorkbenchLayoutProps.workspaceView.tabBadge).toBe(
-      "project-record-root",
+    expect(sceneProps.canvasWorkbenchLayoutProps.workspaceView).toEqual(
+      expect.objectContaining({ panelCopy: expect.any(Object) }),
     );
   });
 
-  it("运行时输出和文件信号应启用工作台模式并透出输出/日志入口", async () => {
+  it("运行时输出和文件信号应透出输出、审批与变更", async () => {
     const openChangedFile = vi.fn(async () => undefined);
-    const handleSendFromEmptyState = vi.fn();
     const handlePermissionResponse = vi.fn();
     const params = createBaseParams({
       executionStrategy: "react",
-      handleSendFromEmptyState,
       handlePermissionResponse,
       canvasScene: {
         ...createBaseParams().canvasScene,
@@ -210,77 +182,7 @@ describe("useWorkspaceConversationSceneRuntime coding workbench projection", () 
     const canvasProps = sceneProps.canvasWorkbenchLayoutProps;
 
     expect(canvasProps.workbenchMode).toBe("coding");
-    expect(canvasProps.outputView?.tabBadge).toBe("3");
-    expect(canvasProps.outputView?.tabBadgeTone).toBe("rose");
-    expect(typeof canvasProps.outputView?.renderPanel).toBe("function");
-    expect(canvasProps.outputView?.leadContent).toBeUndefined();
-    const outputPanel = canvasProps.outputView?.renderPanel?.() as any;
-    expect(outputPanel.props.onRespondToAction).toBe(handlePermissionResponse);
-    expect(typeof outputPanel.props.onSubmitRecoveryPrompt).toBe("function");
-    expect(outputPanel.props.submittedActionsInFlight).toEqual([
-      expect.objectContaining({ requestId: "approval-other" }),
-    ]);
-    expect(handleSendFromEmptyState).not.toHaveBeenCalled();
-    await outputPanel.props.onSubmitRecoveryPrompt("请继续修复失败测试");
-    expect(handleSendFromEmptyState).toHaveBeenCalledWith({
-      textOverride: "请继续修复失败测试",
-    });
-    await outputPanel.props.onSubmitRecoveryPrompt("请带上下文继续修复", {
-      schemaVersion: "coding-workbench-recovery/v1",
-      failureKind: "test",
-      sourceIds: {
-        commandId: "command-npm-test",
-        testRunId: "test-unit",
-      },
-      refs: {
-        outputRefs: ["output://command-npm-test"],
-        sourceEventIds: ["event-command-npm-test"],
-      },
-      relatedFiles: ["src/App.tsx"],
-      latestCheckpointPath: "index.html",
-      signals: [
-        {
-          kind: "test",
-          id: "test-unit",
-          title: "unit",
-          sourceIds: {
-            commandId: "command-npm-test",
-            testRunId: "test-unit",
-          },
-          refs: {
-            outputRefs: ["output://command-npm-test"],
-            sourceEventIds: ["event-command-npm-test"],
-          },
-        },
-      ],
-    });
-    expect(handleSendFromEmptyState).toHaveBeenLastCalledWith({
-      textOverride: "请带上下文继续修复",
-      sendOptions: {
-        requestMetadata: {
-          harness: {
-            coding_workbench_recovery: expect.objectContaining({
-              schemaVersion: "coding-workbench-recovery/v1",
-              failureKind: "test",
-              sourceIds: {
-                commandId: "command-npm-test",
-                testRunId: "test-unit",
-              },
-              refs: {
-                outputRefs: ["output://command-npm-test"],
-                sourceEventIds: ["event-command-npm-test"],
-              },
-              relatedFiles: ["src/App.tsx"],
-              latestCheckpointPath: "index.html",
-            }),
-          },
-        },
-      },
-    });
-    expect(canvasProps.logView).not.toBe(canvasProps.sessionView);
-    expect(canvasProps.logView?.tabLabel).toBe("日志");
-    expect(canvasProps.logView?.title).toBe("运行日志");
-    expect(typeof canvasProps.logView?.renderPanel).toBe("function");
+    expect(canvasProps).not.toHaveProperty("logView");
     expect(canvasProps.changeView?.checkpointCount).toBe(2);
     expect(canvasProps.changeView?.latestCheckpointPath).toBe(
       ".lime/artifacts/thread-1/index.v2.html",
@@ -307,8 +209,6 @@ describe("useWorkspaceConversationSceneRuntime coding workbench projection", () 
     );
     canvasProps.changeView?.onOpenFile?.("/tmp/demo/index.html");
     expect(openChangedFile).toHaveBeenCalledWith("/tmp/demo/index.html");
-
-    expect(handleSendFromEmptyState).toHaveBeenCalledTimes(2);
   });
 
   it("无运行时输出和文件信号时应保持默认画布工作台模式", () => {
@@ -321,8 +221,7 @@ describe("useWorkspaceConversationSceneRuntime coding workbench projection", () 
 
     expect(canvasProps.workbenchMode).toBe("default");
     expect(canvasProps.sessionView).toBeNull();
-    expect(canvasProps.outputView).toBeNull();
-    expect(canvasProps.logView).toBeNull();
+    expect(canvasProps).not.toHaveProperty("logView");
     expect(canvasProps.changeView).toBeNull();
   });
 
@@ -336,8 +235,7 @@ describe("useWorkspaceConversationSceneRuntime coding workbench projection", () 
     const canvasProps = sceneProps.canvasWorkbenchLayoutProps;
 
     expect(canvasProps.workbenchMode).toBe("coding");
-    expect(canvasProps.outputView).toBeNull();
-    expect(canvasProps.logView).toBeNull();
+    expect(canvasProps).not.toHaveProperty("logView");
     expect(canvasProps.changeView).toBeNull();
   });
 });

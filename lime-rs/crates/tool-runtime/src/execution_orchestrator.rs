@@ -156,6 +156,7 @@ pub struct RuntimeToolApprovalRequest {
 
 #[derive(Debug, Clone)]
 pub struct RuntimeToolExecutionAttempt {
+    internal_agent_policy: Option<crate::internal_agent::InternalAgentPolicy>,
     identity: RuntimeToolExecutionIdentity,
     number: RuntimeToolAttemptNumber,
     approval_policy: RuntimeToolApprovalPolicy,
@@ -168,6 +169,17 @@ pub struct RuntimeToolExecutionAttempt {
 }
 
 impl RuntimeToolExecutionAttempt {
+    pub fn internal_agent_policy(&self) -> Option<&crate::internal_agent::InternalAgentPolicy> {
+        self.internal_agent_policy.as_ref()
+    }
+    pub fn with_internal_agent_policy(
+        mut self,
+        policy: crate::internal_agent::InternalAgentPolicy,
+    ) -> Self {
+        self.internal_agent_policy = Some(policy);
+        self
+    }
+
     pub fn identity(&self) -> &RuntimeToolExecutionIdentity {
         &self.identity
     }
@@ -297,6 +309,7 @@ pub async fn orchestrate_runtime_tool_execution(
     };
 
     let initial_attempt = RuntimeToolExecutionAttempt {
+        internal_agent_policy: None,
         identity: input.identity.clone(),
         number: RuntimeToolAttemptNumber::Initial,
         approval_policy: input.approval_policy,
@@ -340,6 +353,7 @@ pub async fn orchestrate_runtime_tool_execution(
         }
     };
     let retry_attempt = RuntimeToolExecutionAttempt {
+        internal_agent_policy: None,
         identity: input.identity,
         number: RuntimeToolAttemptNumber::Escalated,
         approval_policy: input.approval_policy,
@@ -572,6 +586,7 @@ pub(crate) fn test_runtime_tool_execution_attempt(
     granted_permissions: GrantedPermissionProfile,
 ) -> RuntimeToolExecutionAttempt {
     RuntimeToolExecutionAttempt {
+        internal_agent_policy: None,
         identity,
         number: RuntimeToolAttemptNumber::Initial,
         approval_policy: RuntimeToolApprovalPolicy::UnlessTrusted,

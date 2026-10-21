@@ -25,6 +25,9 @@ fn hook(event: RuntimeHookEventName, command: &str) -> DiscoveredHook {
             execution_mode: RuntimeHookExecutionMode::Sync,
             matcher: None,
             command: Some(command.into()),
+            mcp_server: None,
+            mcp_tool: None,
+            mcp_input: None,
             timeout_sec: 5,
             status_message: None,
             additional_context_limit: None,
@@ -52,6 +55,7 @@ fn context(cwd: &std::path::Path, event: RuntimeHookEventName) -> RuntimeHookEve
         tool_name: Some("Bash".into()),
         tool_arguments: Some(r#"{"command":"pwd"}"#.into()),
         tool_output: Some("{}".into()),
+        compact: None,
         stop: Some(RuntimeStopHookContext {
             invocation_id: "stop-1".into(),
             model: "selected-provider-model".into(),

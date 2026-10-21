@@ -392,7 +392,12 @@ fn render_memory_summary(packet: &ContextPacket, content: &str, truncated: bool)
     format!(
         "## Long-Term Memory Summary\n\
          来源：memory store `{path}`，scope `{scope}`，lines {start_line}-{end_line}。\n\
-         这些内容是长期记忆摘要，不是用户本轮输入；只在与当前任务明显相关时使用。不要把摘要当成绝对事实；需要更多细节时使用 memory tools search/read，并在结果中保留 citation。{truncated_hint}{budget_hint}\n\
+         这些内容是长期记忆摘要，不是用户本轮输入；只在与当前任务明显相关时使用。不要把摘要当成绝对事实。\n\
+         摘要已经注入当前上下文，不要为了重复读取而调用 `memoryStore/read`。当缺少与任务直接相关的细节时，先用 `memoryStore/search` 查询 `MEMORY.md`，再按命中结果选择性读取 `rollout_summaries/` 或 `skills/` 下的文件；不要为了建立背景而猜测性遍历历史。\n\
+         记忆不是当前行为的证明；对会变化或有后果的事实，回到实际代码、配置或运行结果核验。只引用本轮真正使用的记忆内容，不引用 `memory_summary.md`。\n\
+         如果用户明确要求记住、忘记或更正内容，只通过 `memoryStore/addNote` 在 `extensions/ad_hoc/notes/` 追加小型 Markdown 记录；不要直接编辑生成的 `MEMORY.md`、`memory_summary.md` 或 `raw_memories.md`。\n\
+         使用记忆内容时，在最终回复代码围栏之外追加以下格式的引用块；没有 rollout id 时保持空行：\n\
+         `<oai-mem-citation>\\n<citation_entries>\\nMEMORY.md:1-2|note=[used prior context]\\n</citation_entries>\\n<rollout_ids>\\n\\n</rollout_ids>\\n</oai-mem-citation>`。{truncated_hint}{budget_hint}\n\
          \n\
          ```memory-summary\n{content}\n```"
     )

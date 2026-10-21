@@ -3,13 +3,20 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
 use agent_protocol::{Thread, ThreadHistoryChangeSet};
+use app_server_protocol::AgentEvent;
 use chrono::{DateTime, Datelike, Local, SecondsFormat, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 mod append_guard;
+mod compression;
 mod delete;
 mod digest;
+mod history;
+mod media;
+mod read;
+mod scan;
+use scan::scan_rollout_reader;
 mod tail_repair;
 #[cfg(test)]
 mod tests;
@@ -48,6 +55,7 @@ enum RolloutRecord {
         fingerprint: String,
         content_digest: String,
         changes: ThreadHistoryChangeSet,
+        runtime_events: Vec<AgentEvent>,
     },
     ThreadMetadata {
         schema_version: u32,
@@ -76,6 +84,7 @@ pub(super) struct RolloutHistoryRecord {
     pub(super) sequence: u64,
     pub(super) fingerprint: String,
     pub(super) changes: ThreadHistoryChangeSet,
+    pub(super) runtime_events: Vec<AgentEvent>,
 }
 
 #[derive(Debug, Clone)]
@@ -133,6 +142,7 @@ impl RolloutStore {
     ) -> Result<(), String> {
         let stored_path = active_storage_path(relative_path)?;
         let path = self.resolve_active(relative_path)?;
+        self.materialize_for_append(&path)?;
         if path.exists() {
             return self.validate_existing_thread(&path, thread, &stored_path);
         }
@@ -173,56 +183,6 @@ impl RolloutStore {
         }
     }
 
-    pub(super) fn append_history(
-        &self,
-        relative_path: &Path,
-        session_id: &str,
-        thread_id: &str,
-        fingerprint: &str,
-        changes: &ThreadHistoryChangeSet,
-    ) -> Result<bool, String> {
-        let path = self.resolve_active(relative_path)?;
-        tail_repair::repair_crash_tail(&path)?;
-        let latest =
-            append_guard::latest_history_for_append(&path, relative_path, session_id, thread_id)?;
-        if let Some(existing) = latest
-            .as_ref()
-            .filter(|record| record.sequence == changes.sequence)
-        {
-            if existing.fingerprint == fingerprint {
-                return Ok(false);
-            }
-            return Err(format!(
-                "rollout history sequence collision at {}",
-                changes.sequence
-            ));
-        }
-        if latest
-            .as_ref()
-            .is_some_and(|record| record.sequence > changes.sequence)
-        {
-            return Err(format!(
-                "rollout history sequence {} is stale",
-                changes.sequence
-            ));
-        }
-        let record = RolloutRecord::ThreadHistory {
-            schema_version: ROLLOUT_SCHEMA_VERSION,
-            session_id: session_id.to_string(),
-            thread_id: thread_id.to_string(),
-            sequence: changes.sequence,
-            fingerprint: fingerprint.to_string(),
-            content_digest: history_content_digest(session_id, thread_id, changes)?,
-            changes: changes.clone(),
-        };
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(&path)
-            .map_err(|error| format!("failed to open rollout file {}: {error}", path.display()))?;
-        write_synced_record(&mut file, &path, &record)?;
-        Ok(true)
-    }
-
     pub(super) fn append_metadata(
         &self,
         relative_path: &Path,
@@ -242,6 +202,7 @@ impl RolloutStore {
                 relative_path.to_path_buf(),
             )
         };
+        self.materialize_for_append(&path)?;
         let scan = scan_rollout_repaired(&path)?;
         validate_scan_identity(
             &scan,
@@ -293,31 +254,6 @@ impl RolloutStore {
             .map_err(|error| format!("failed to open rollout file {}: {error}", path.display()))?;
         write_synced_record(&mut file, &path, &record)?;
         Ok(next.updated_at_ms)
-    }
-
-    pub(super) fn verify_history(
-        &self,
-        relative_path: &Path,
-        session_id: &str,
-        thread_id: &str,
-        sequence: u64,
-        fingerprint: &str,
-    ) -> Result<(), String> {
-        let path = self.resolve_active(relative_path)?;
-        let scan = scan_rollout_repaired(&path)?;
-        validate_scan_identity(&scan, relative_path, session_id, thread_id, &path)?;
-        match scan
-            .history
-            .iter()
-            .find(|record| record.sequence == sequence)
-        {
-            Some(record) if record.fingerprint == fingerprint => Ok(()),
-            Some(_) => Err(format!("rollout history sequence collision at {sequence}")),
-            None => Err(format!(
-                "rollout is missing committed history sequence {sequence}: {}",
-                path.display()
-            )),
-        }
     }
 
     pub(super) fn archive(
@@ -389,6 +325,7 @@ impl RolloutStore {
         self.collect_rollouts(SESSIONS_DIR_NAME, true, &mut paths)?;
         self.collect_rollouts(ARCHIVED_SESSIONS_DIR_NAME, false, &mut paths)?;
         paths.sort();
+        paths.dedup();
         let mut snapshots = Vec::with_capacity(paths.len());
         for relative_path in paths {
             let archived = relative_path.components().next()
@@ -450,19 +387,15 @@ impl RolloutStore {
         session_id: &str,
         thread_id: &str,
     ) -> Result<(), String> {
-        let source_exists = source
-            .try_exists()
-            .map_err(|error| format!("failed to inspect rollout {}: {error}", source.display()))?;
-        let destination_exists = destination.try_exists().map_err(|error| {
-            format!(
-                "failed to inspect rollout {}: {error}",
-                destination.display()
-            )
-        })?;
+        let source_exists = compression::existing_path(source)?.is_some();
+        let destination_exists = compression::existing_path(destination)?.is_some();
         match (source_exists, destination_exists) {
             (true, false) => {
                 let scan = scan_rollout_repaired(source)?;
                 validate_scan_identity(&scan, active_path, session_id, thread_id, source)?;
+                self.materialize_for_append(source)?;
+                // A stale compressed sibling must not resurrect the source on rebuild.
+                compression::remove_compressed(source)?;
                 let parent = destination.parent().ok_or_else(|| {
                     format!("rollout path has no parent: {}", destination.display())
                 })?;
@@ -544,6 +477,7 @@ impl RolloutStore {
 pub(super) struct LatestRolloutHistory {
     sequence: u64,
     fingerprint: String,
+    content_digest: String,
 }
 
 fn validate_scan_identity(
@@ -564,6 +498,10 @@ fn validate_scan_identity(
 }
 
 fn scan_rollout_repaired(path: &Path) -> Result<RolloutScan, String> {
+    if compression::existing_path(path)?.is_some_and(|existing| existing != path) {
+        let (physical, reader) = read::open_rollout_reader(path)?;
+        return scan_rollout_reader(reader, &physical);
+    }
     tail_repair::repair_crash_tail(path)?;
     scan_rollout(path)
 }
@@ -578,141 +516,6 @@ fn validate_rollout_prefix(path: &Path, byte_len: u64) -> Result<(), String> {
     let file = File::open(path)
         .map_err(|error| format!("failed to read rollout file {}: {error}", path.display()))?;
     scan_rollout_reader(BufReader::new(file.take(byte_len)), path).map(|_| ())
-}
-
-fn scan_rollout_reader(reader: impl BufRead, path: &Path) -> Result<RolloutScan, String> {
-    let mut lines = reader.lines();
-    let first = lines
-        .next()
-        .ok_or_else(|| format!("rollout file is empty: {}", path.display()))?
-        .map_err(|error| format!("failed to read rollout file {}: {error}", path.display()))?;
-    let RolloutRecord::SessionMeta {
-        schema_version,
-        session_id,
-        thread_id,
-        created_at_ms,
-        rollout_path,
-        thread: initial_thread,
-        ..
-    } = parse_record(&first, path)?
-    else {
-        return Err(format!(
-            "rollout first line must be session metadata: {}",
-            path.display()
-        ));
-    };
-    if !digest::supported_schema_version(schema_version) {
-        return Err(format!(
-            "unsupported rollout schema version {schema_version}: {}",
-            path.display()
-        ));
-    }
-    let mut initial_thread = initial_thread;
-    let mut metadata_digest = digest::initial_metadata_digest(
-        schema_version,
-        first.as_bytes(),
-        &session_id,
-        &thread_id,
-        initial_thread.updated_at_ms,
-        &initial_thread.metadata,
-    )?;
-    let mut history = Vec::new();
-    for line in lines {
-        let line = line
-            .map_err(|error| format!("failed to read rollout file {}: {error}", path.display()))?;
-        match parse_record(&line, path)? {
-            RolloutRecord::ThreadHistory {
-                schema_version,
-                session_id: record_session_id,
-                thread_id: record_thread_id,
-                sequence,
-                fingerprint,
-                content_digest,
-                changes,
-            } => {
-                if !digest::supported_schema_version(schema_version)
-                    || record_session_id != session_id
-                    || record_thread_id != thread_id
-                    || changes.sequence != sequence
-                    || !is_sha256_hex(&fingerprint)
-                    || !digest::history_digest_matches(
-                        schema_version,
-                        line.as_bytes(),
-                        &session_id,
-                        &thread_id,
-                        &changes,
-                        &content_digest,
-                    )?
-                {
-                    return Err(format!(
-                        "invalid rollout history record: {}",
-                        path.display()
-                    ));
-                }
-                if history
-                    .last()
-                    .is_some_and(|record: &RolloutHistoryRecord| record.sequence >= sequence)
-                {
-                    return Err(format!(
-                        "rollout history sequence is not strictly increasing: {}",
-                        path.display()
-                    ));
-                }
-                history.push(RolloutHistoryRecord {
-                    sequence,
-                    fingerprint,
-                    changes,
-                });
-            }
-            RolloutRecord::ThreadMetadata {
-                schema_version,
-                session_id: record_session_id,
-                thread_id: record_thread_id,
-                updated_at_ms,
-                previous_content_digest,
-                content_digest,
-                metadata,
-            } => {
-                if !digest::supported_schema_version(schema_version)
-                    || record_session_id != session_id
-                    || record_thread_id != thread_id
-                    || previous_content_digest != metadata_digest
-                    || updated_at_ms < initial_thread.updated_at_ms
-                    || digest::metadata_digest_for_record(
-                        schema_version,
-                        line.as_bytes(),
-                        &session_id,
-                        &thread_id,
-                        updated_at_ms,
-                        &metadata,
-                    )? != content_digest
-                {
-                    return Err(format!(
-                        "invalid rollout metadata record: {}",
-                        path.display()
-                    ));
-                }
-                initial_thread.metadata = metadata;
-                initial_thread.updated_at_ms = updated_at_ms;
-                metadata_digest = content_digest;
-            }
-            RolloutRecord::SessionMeta { .. } => {
-                return Err(format!(
-                    "rollout session metadata may only appear on the first line: {}",
-                    path.display()
-                ));
-            }
-        }
-    }
-    Ok(RolloutScan {
-        session_id,
-        thread_id,
-        created_at_ms,
-        rollout_path,
-        initial_thread,
-        metadata_digest,
-        history,
-    })
 }
 
 fn parse_record(line: &str, path: &Path) -> Result<RolloutRecord, String> {
@@ -773,11 +576,12 @@ fn collect_rollout_files(
             }
             continue;
         }
-        let is_rollout = file_name
-            .to_str()
-            .is_some_and(|name| name.starts_with("rollout-") && name.ends_with(".jsonl"));
+        let is_rollout = file_name.to_str().is_some_and(|name| {
+            name.starts_with("rollout-")
+                && (name.ends_with(".jsonl") || name.ends_with(".jsonl.zst"))
+        });
         if metadata.is_file() && is_rollout {
-            output.push(relative_path);
+            output.push(compression::plain_path(&relative_path));
         }
     }
     Ok(())

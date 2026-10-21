@@ -1,0 +1,34 @@
+.list {
+  overflow-anchor: none;
+  scrollbar-width: none;
+  mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - var(--recent-row-height, 0px) / 2),
+    transparent
+  );
+}
+
+.list[data-interacted="true"] {
+  scroll-snap-type: y mandatory;
+}
+
+.list[data-at-bottom="true"] {
+  mask-image: none;
+}
+
+.row {
+  scroll-snap-align: start;
+  border-radius: var(--radius-xl);
+  border-bottom: 1px solid var(--lime-surface-border);
+}
+
+.row:hover,
+.row:focus-within {
+  border-bottom-color: transparent;
+  background: var(--lime-chrome-tab-hover);
+}
+
+.row:has(+ .row:hover),
+.row:has(+ .row:focus-within) {
+  border-bottom-color: transparent;
+}

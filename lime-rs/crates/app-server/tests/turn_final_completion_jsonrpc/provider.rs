@@ -5,6 +5,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 pub(super) const REASONING: &str = "final reasoning retained across cold recovery";
+pub(super) const PORTABLE_ANSWER: &str = "portable visible assistant answer";
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum Wire {
@@ -60,7 +61,7 @@ impl Wire {
         }]
     }
 
-    fn response(self, reasoning: bool, later: bool) -> String {
+    fn response(self, reasoning: bool, later: bool, receipts: bool) -> String {
         let mut events = Vec::new();
         match self {
             Self::Chat => {
@@ -72,14 +73,28 @@ impl Wire {
                     json!({})
                 };
                 events.push(json!({"id":"final-chat","object":"chat.completion.chunk","created":0,"model":"final-model","choices":[{"index":0,"delta":delta,"finish_reason":null}]}));
+                if receipts && !later {
+                    events.push(json!({"id":"final-chat","object":"chat.completion.chunk","created":0,"model":"final-model","choices":[{"index":0,"delta":{"content":PORTABLE_ANSWER},"finish_reason":null}]}));
+                }
                 events.push(json!({"id":"final-chat","object":"chat.completion.chunk","created":0,"model":"final-model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":4,"total_tokens":14}}));
             }
             Self::Responses => {
                 if later {
                     events.push(json!({"type":"response.output_text.delta","item_id":"later-text","delta":"later response"}));
                 } else if reasoning {
-                    events.push(json!({"type":"response.output_item.added","output_index":0,"item":{"type":"reasoning","id":"final-reasoning","summary":[],"encrypted_content":null}}));
+                    events.push(json!({"type":"response.output_item.added","output_index":0,"item":{"type":"reasoning","id":"final-reasoning","summary":[],"encrypted_content":receipts.then_some("portable-responses-encrypted")}}));
                     events.push(json!({"type":"response.reasoning_text.delta","item_id":"final-reasoning","content_index":0,"delta":REASONING}));
+                    if receipts {
+                        events.push(json!({"type":"response.output_item.done","output_index":0,
+                            "item":{"type":"reasoning","id":"final-reasoning","summary":[],
+                                "content":[{"type":"reasoning_text","text":REASONING}],
+                                "encrypted_content":"portable-responses-encrypted"}}));
+                    }
+                }
+                if receipts && !later {
+                    events.push(json!({"type":"response.output_item.done","output_index":1,
+                        "item":{"type":"message","id":"portable-answer","role":"assistant",
+                            "content":[{"type":"output_text","text":PORTABLE_ANSWER}]}}));
                 }
                 events.push(json!({"type":"response.completed","response":{"id":"final-responses","end_turn":true,"output":[],"usage":{"input_tokens":10,"output_tokens":4}}}));
             }
@@ -88,23 +103,40 @@ impl Wire {
                 if later {
                     events.push(json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":"later response"}}));
                 } else if reasoning {
-                    events.push(json!({"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":"final-fixture-signature"}}));
+                    events.push(json!({"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":if receipts { "" } else { "final-fixture-signature" }}}));
                     events.push(json!({"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":REASONING}}));
+                    if receipts {
+                        for signature in ["final-fixture-", "signature"] {
+                            events.push(json!({"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":signature}}));
+                        }
+                    }
                 }
                 if later || reasoning {
                     events.push(json!({"type":"content_block_stop","index":0}));
+                }
+                if receipts && !later {
+                    events.push(json!({"type":"content_block_start","index":1,"content_block":{"type":"text","text":PORTABLE_ANSWER}}));
+                    events.push(json!({"type":"content_block_stop","index":1}));
                 }
                 events.push(json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":10,"output_tokens":4}}));
                 events.push(json!({"type":"message_stop"}));
             }
             Self::Gemini => {
                 if later || reasoning {
-                    let part = if later {
+                    let mut part = if later {
                         json!({"text":"later response"})
                     } else {
                         json!({"text":REASONING,"thought":true})
                     };
+                    if receipts && reasoning && !later {
+                        part["thoughtSignature"] = json!("portable-gemini-signature");
+                    }
                     events.push(json!({"candidates":[{"index":0,"content":{"role":"model","parts":[part]}}]}));
+                }
+                if receipts && !later {
+                    events.push(json!({"candidates":[{"index":0,"content":{"role":"model","parts":[{
+                        "text":PORTABLE_ANSWER,"thoughtSignature":"portable-gemini-text-signature"
+                    }]}}]}));
                 }
                 events.push(json!({"candidates":[{"index":0,"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":4,"totalTokenCount":14}}));
             }
@@ -131,6 +163,10 @@ pub(super) struct Provider {
 
 impl Provider {
     pub(super) async fn start(wire: Wire, reasoning: bool) -> Self {
+        Self::start_with_receipts(wire, reasoning, false).await
+    }
+
+    pub(super) async fn start_with_receipts(wire: Wire, reasoning: bool, receipts: bool) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}/v1", listener.local_addr().unwrap());
         let requests = Arc::new(Mutex::new(Vec::new()));
@@ -148,7 +184,7 @@ impl Provider {
                     captured.push(request);
                     captured.len()
                 };
-                let body = wire.response(reasoning, count > 1);
+                let body = wire.response(reasoning, count > 1, receipts);
                 let headers = format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
                 socket.write_all(headers.as_bytes()).await.unwrap();
                 socket.write_all(body.as_bytes()).await.unwrap();

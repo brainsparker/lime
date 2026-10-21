@@ -93,8 +93,11 @@ pub(in crate::runtime_backend) fn session_config_from_request_with_plugins_and_o
                     plugin_snapshots,
                     orchestrator_skills,
                 );
-        let system_prompt =
-            append_memory_context_to_system_prompt(skills_context.system_prompt, runtime_metadata);
+        let system_prompt = if request.internal_agent_policy.is_some() {
+            skills_context.system_prompt
+        } else {
+            append_memory_context_to_system_prompt(skills_context.system_prompt, runtime_metadata)
+        };
         let system_prompt = append_soul_context_to_system_prompt(
             system_prompt,
             config_metadata.as_ref(),
@@ -114,6 +117,12 @@ pub(in crate::runtime_backend) fn session_config_from_request_with_plugins_and_o
     };
     let mut turn_context =
         turn_context_from_request(request, host_request, scope, selection, config_metadata);
+    if let Some(policy) = request.internal_agent_policy.as_ref() {
+        let context = turn_context.get_or_insert_with(Default::default);
+        context.cwd = Some(policy.root().to_path_buf());
+        context.approval_policy = Some("never".to_string());
+        context.sandbox_policy = Some(policy.process_label().to_string());
+    }
     let structured_mentions = super::structured_control_mentions(request);
     if !structured_mentions.is_empty() {
         turn_context

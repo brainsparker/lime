@@ -3,8 +3,6 @@ import { buildCanvasWorkbenchToolTabProjection } from "./CanvasWorkbenchToolTabs
 
 const copy: Record<string, string> = {
   "agentChat.canvasWorkbench.coding.tabs.changes": "审查",
-  "agentChat.canvasWorkbench.coding.tabs.logs": "日志",
-  "agentChat.canvasWorkbench.coding.tabs.outputs": "输出",
   "agentChat.canvasWorkbench.newTabs.terminal": "终端",
   "agentChat.canvasWorkbench.newTabs.files": "文件",
   "agentChat.canvasWorkbench.newTabs.terminalTab": "终端",
@@ -62,30 +60,6 @@ describe("CanvasWorkbenchToolTabsViewModel", () => {
       { key: "terminal:1", label: "终端", closable: true },
       { key: "project-files:1", label: "打开文件", closable: true },
       { key: "terminal:2", label: "终端 2", closable: true },
-    ]);
-  });
-
-  it("coding 模式应在存在投影视图时显示输出和日志 tab", () => {
-    const projection = buildCanvasWorkbenchToolTabProjection({
-      changeItemCount: 1,
-      documentDiffLineCount: 0,
-      failedChangeItemCount: 0,
-      utilityTabs: {
-        outputs: true,
-        logs: true,
-      },
-      openedToolTabs: [],
-      translateWorkbench: t,
-    });
-
-    expect(projection.primaryTabs.map((tab) => tab.key)).toEqual([
-      "changes",
-      "outputs",
-      "logs",
-    ]);
-    expect(projection.primaryTabs.slice(1)).toMatchObject([
-      { key: "outputs", label: "输出" },
-      { key: "logs", label: "日志" },
     ]);
   });
 

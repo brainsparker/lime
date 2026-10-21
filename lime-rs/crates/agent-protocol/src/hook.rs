@@ -19,6 +19,7 @@ pub enum HookEventName {
     SubagentStart,
     SubagentStop,
     Stop,
+    Interrupt,
 }
 
 impl HookEventName {
@@ -35,6 +36,7 @@ impl HookEventName {
             Self::SubagentStart => "subagent_start",
             Self::SubagentStop => "subagent_stop",
             Self::Stop => "stop",
+            Self::Interrupt => "interrupt",
         }
     }
 
@@ -48,7 +50,8 @@ impl HookEventName {
             | Self::PostCompact
             | Self::UserPromptSubmit
             | Self::SubagentStop
-            | Self::Stop => HookScope::Turn,
+            | Self::Stop
+            | Self::Interrupt => HookScope::Turn,
         }
     }
 }
@@ -57,6 +60,7 @@ impl HookEventName {
 #[serde(rename_all = "snake_case")]
 pub enum HookHandlerType {
     Command,
+    McpTool,
     Prompt,
     Agent,
 }
@@ -137,6 +141,13 @@ pub struct HookSnapshot {
     pub execution_mode: HookExecutionMode,
     pub matcher: Option<String>,
     pub command: Option<String>,
+    /// MCP hook target. These fields are populated only for `McpTool` handlers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_server: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_tool: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_input: Option<serde_json::Value>,
     pub timeout_sec: u64,
     pub status_message: Option<String>,
     pub additional_context_limit: Option<usize>,

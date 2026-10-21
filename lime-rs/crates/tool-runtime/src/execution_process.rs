@@ -666,11 +666,13 @@ impl LocalExecutionProcessHandle {
         }
         let final_rx = self
             .final_rx
-            .take()
+            .as_mut()
             .ok_or(LocalExecutionError::SupervisorClosed)?;
         let snapshot = final_rx
             .await
-            .map_err(|_| LocalExecutionError::SupervisorClosed)?;
+            .map_err(|_| LocalExecutionError::SupervisorClosed);
+        self.final_rx.take();
+        let snapshot = snapshot?;
         self.final_snapshot = Some(snapshot.clone());
         Ok(snapshot)
     }

@@ -25,6 +25,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 use tokio::sync::oneshot;
+use tool_runtime::hook_gated_executor::FixedHookReporter;
+use tool_runtime::hook_lifecycle::RuntimeHookHandlerReport;
 use tool_runtime::tool_executor::{
     RuntimeToolExecutionFuture, RuntimeToolExecutionRequest, RuntimeToolExecutionResult,
     RuntimeToolExecutor,
@@ -32,6 +34,10 @@ use tool_runtime::tool_executor::{
 use tool_runtime::tool_lifecycle::{
     CodeCellRuntimeStatus, CodeCellTraceEvent, ToolLifecycleEmissionFuture, ToolLifecycleEvent,
     ToolLifecyclePhase, ToolOutputDeltaEvent,
+};
+use tool_runtime::turn_snapshot::{
+    RuntimeHookEventName, RuntimeHookExecutionMode, RuntimeHookHandlerType, RuntimeHookSource,
+    RuntimeHookTrustStatus,
 };
 
 #[path = "tests/context_history.rs"]
@@ -150,6 +156,30 @@ impl RuntimeMidTurnCompactionCapability for TestMidTurnCompaction {
                 compaction_id: "compact-1".to_string(),
                 context_epoch: 2,
                 covered_through_sequence: 11,
+                durable_event_id: None,
+            }))
+        })
+    }
+}
+
+struct SessionEpochCompaction;
+
+impl RuntimeMidTurnCompactionCapability for SessionEpochCompaction {
+    fn compact(
+        &self,
+        _request: RuntimeMidTurnCompactionRequest,
+        _cancellation: Option<CancellationToken>,
+    ) -> RuntimeMidTurnCompactionFuture<'_> {
+        Box::pin(async {
+            Ok(Some(RuntimeMidTurnCompactionResult {
+                messages: vec![CurrentProviderMessage::user(vec![
+                    CurrentProviderContent::Text("rolled summary".to_string()),
+                ])],
+                history_prefix_len: 1,
+                compaction_id: "compact-session-epoch".to_string(),
+                context_epoch: 1,
+                covered_through_sequence: 4,
+                durable_event_id: None,
             }))
         })
     }
@@ -166,6 +196,8 @@ async fn same_turn_compaction_replaces_history_and_emits_receipt() {
     let mut record = |event| events.push(event);
     maybe_compact_after_step(
         Some(&capability),
+        None,
+        None,
         &mut messages,
         &mut prefix_len,
         Some(&CurrentProviderUsage {
@@ -180,6 +212,11 @@ async fn same_turn_compaction_replaces_history_and_emits_receipt() {
         None,
         &mut record,
         true,
+        &crate::session_config::SessionConfigBuilder::new("session-1")
+            .turn_id("turn-1")
+            .build(),
+        "turn-1",
+        Path::new("."),
     )
     .await
     .expect("compaction succeeds");
@@ -191,8 +228,222 @@ async fn same_turn_compaction_replaces_history_and_emits_receipt() {
             compaction_id,
             context_epoch: 2,
             covered_through_sequence: 11,
+            durable_event_id: None,
         }) if compaction_id == "compact-1"
     ));
+}
+
+fn compaction_hook(event_name: RuntimeHookEventName) -> RuntimeHookSnapshot {
+    RuntimeHookSnapshot {
+        key: format!("test:{}", event_name.key_label()),
+        event_name,
+        handler_type: RuntimeHookHandlerType::Command,
+        execution_mode: RuntimeHookExecutionMode::Sync,
+        matcher: None,
+        command: Some("true".to_string()),
+        mcp_server: None,
+        mcp_tool: None,
+        mcp_input: None,
+        timeout_sec: 5,
+        status_message: None,
+        additional_context_limit: None,
+        source_path: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("hooks.json"),
+        source: RuntimeHookSource::Project,
+        plugin_id: None,
+        display_order: if event_name == RuntimeHookEventName::PreCompact {
+            0
+        } else {
+            1
+        },
+        enabled: true,
+        is_managed: false,
+        current_hash: "sha256:test".to_string(),
+        trust_status: RuntimeHookTrustStatus::Trusted,
+    }
+}
+
+#[tokio::test]
+async fn same_turn_compaction_runs_pre_and_post_compact_hooks_after_due_check() {
+    let capability = RuntimeMidTurnCompactionCapabilityHandle::new(Arc::new(TestMidTurnCompaction));
+    let hook_step = RuntimeHookStepSnapshot {
+        hooks: vec![
+            compaction_hook(RuntimeHookEventName::PreCompact),
+            compaction_hook(RuntimeHookEventName::PostCompact),
+        ],
+        reporter: Arc::new(FixedHookReporter::new(Some(
+            RuntimeHookHandlerReport::Allow {
+                additional_context: None,
+            },
+        ))),
+        step_context: None,
+    };
+    let mut messages = vec![CurrentProviderMessage::user(vec![
+        CurrentProviderContent::Text("old".to_string()),
+    ])];
+    let mut prefix_len = 1;
+    let mut events = Vec::new();
+    let mut record = |event| events.push(event);
+    let config = crate::session_config::SessionConfigBuilder::new("session-hooks")
+        .thread_id("thread-hooks")
+        .turn_id("turn-hooks")
+        .build();
+    maybe_compact_after_step(
+        Some(&capability),
+        Some(&hook_step),
+        None,
+        &mut messages,
+        &mut prefix_len,
+        Some(&CurrentProviderUsage {
+            input_tokens: 100,
+            ..Default::default()
+        }),
+        1,
+        None,
+        GenerationOptions::default(),
+        ProviderMetadata::new(),
+        None,
+        None,
+        &mut record,
+        false,
+        &config,
+        "turn-hooks",
+        Path::new("."),
+    )
+    .await
+    .expect("compaction hooks allow the replacement");
+    assert_eq!(messages.len(), 1);
+    assert!(matches!(
+        events.first(),
+        Some(CurrentProviderTurnEvent::MidTurnCompaction { .. })
+    ));
+}
+
+#[tokio::test]
+async fn pre_compact_hook_block_prevents_summary_and_epoch_rollover() {
+    let capability = RuntimeMidTurnCompactionCapabilityHandle::new(Arc::new(TestMidTurnCompaction));
+    let hook_step = RuntimeHookStepSnapshot {
+        hooks: vec![compaction_hook(RuntimeHookEventName::PreCompact)],
+        reporter: Arc::new(FixedHookReporter::new(Some(
+            RuntimeHookHandlerReport::Block {
+                reason: "compact only after approval".to_string(),
+            },
+        ))),
+        step_context: None,
+    };
+    let mut messages = vec![CurrentProviderMessage::user(vec![
+        CurrentProviderContent::Text("old".to_string()),
+    ])];
+    let original = messages.clone();
+    let mut prefix_len = 1;
+    let mut record = |_event| {};
+    let config = crate::session_config::SessionConfigBuilder::new("session-hooks")
+        .thread_id("thread-hooks")
+        .turn_id("turn-hooks")
+        .build();
+    let error = maybe_compact_after_step(
+        Some(&capability),
+        Some(&hook_step),
+        None,
+        &mut messages,
+        &mut prefix_len,
+        Some(&CurrentProviderUsage {
+            input_tokens: 100,
+            ..Default::default()
+        }),
+        1,
+        None,
+        GenerationOptions::default(),
+        ProviderMetadata::new(),
+        None,
+        None,
+        &mut record,
+        false,
+        &config,
+        "turn-hooks",
+        Path::new("."),
+    )
+    .await
+    .expect_err("blocked PreCompact hook must fail closed");
+    assert!(error.message.contains("compact only after approval"));
+    assert_eq!(messages, original);
+    assert_eq!(prefix_len, 1);
+}
+
+#[tokio::test]
+async fn same_turn_compaction_advances_the_session_context_epoch_before_next_step() {
+    let registry = RuntimeSessionRegistry::default();
+    let session = registry
+        .get_or_create("session-compaction-epoch", "thread-compaction-epoch")
+        .await
+        .expect("bind compaction epoch actor");
+    let task = RuntimeSessionClosureTask::new(
+        "turn-compaction-epoch",
+        Vec::new(),
+        move |context, _input, _cancel| {
+            Box::pin(async move {
+                let input = context.input_handle();
+                let before = input.capture_step_context().await;
+                assert_eq!(before.context_epoch, 0);
+
+                let capability =
+                    RuntimeMidTurnCompactionCapabilityHandle::new(Arc::new(SessionEpochCompaction));
+                let mut messages = vec![CurrentProviderMessage::user(vec![
+                    CurrentProviderContent::Text("before compaction".to_string()),
+                ])];
+                let mut history_prefix_len = 1;
+                let mut events = Vec::new();
+                let mut record = |event| events.push(event);
+                maybe_compact_after_step(
+                    Some(&capability),
+                    None,
+                    Some(&input),
+                    &mut messages,
+                    &mut history_prefix_len,
+                    None,
+                    1,
+                    None,
+                    GenerationOptions::default(),
+                    ProviderMetadata::new(),
+                    None,
+                    None,
+                    &mut record,
+                    false,
+                    &crate::session_config::SessionConfigBuilder::new("session-compaction-epoch")
+                        .thread_id("thread-compaction-epoch")
+                        .turn_id("turn-compaction-epoch")
+                        .build(),
+                    "turn-compaction-epoch",
+                    Path::new("."),
+                )
+                .await
+                .expect("compaction succeeds");
+
+                let after = input.capture_step_context().await;
+                assert_eq!(after.context_epoch, 1);
+                assert!(matches!(
+                    events.first(),
+                    Some(CurrentProviderTurnEvent::MidTurnCompaction {
+                        context_epoch: 1,
+                        compaction_id,
+                        ..
+                    }) if compaction_id == "compact-session-epoch"
+                ));
+                Ok(())
+            })
+        },
+    );
+    let submission = session
+        .submit(Arc::new(task), false)
+        .await
+        .expect("submit compaction epoch task");
+    assert_eq!(
+        submission.completion.await.expect("task completion"),
+        Ok(crate::session_loop::RuntimeSessionTaskOutcome::Completed)
+    );
+    registry
+        .shutdown("session-compaction-epoch")
+        .await
+        .expect("shutdown");
 }
 
 impl ScriptedProvider {
@@ -945,7 +1196,10 @@ struct SequencedToolStepSnapshotSource {
 }
 
 impl RuntimeToolStepSnapshotSource for SequencedToolStepSnapshotSource {
-    fn capture(&self) -> RuntimeToolStepSnapshotFuture<'_> {
+    fn capture(
+        &self,
+        _step_context: Option<&RuntimeSessionStepContext>,
+    ) -> RuntimeToolStepSnapshotFuture<'_> {
         Box::pin(async move {
             self.snapshots
                 .lock()

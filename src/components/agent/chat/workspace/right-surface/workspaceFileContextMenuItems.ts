@@ -2,8 +2,10 @@ import type { OpenInTarget } from "@/lib/api/openInTypes";
 
 export interface WorkspaceFileMenuActions {
   canSaveAs: boolean;
+  canCopyContents: boolean;
   busy: boolean;
   copyPath(): Promise<void>;
+  copyContents(): Promise<void>;
   saveAs(): Promise<void>;
   openTarget(target: OpenInTarget): Promise<void>;
 }
@@ -111,6 +113,13 @@ export function getFileContentContextMenuItems(
   apps?: WorkspaceFileTargets,
 ) {
   const items = localFileItems(actions, apps);
+  if (actions.canCopyContents)
+    items.push({
+      id: "copy-contents",
+      labelKey: "workspace.fileActions.copyContents",
+      disabled: actions.busy,
+      onSelect: actions.copyContents,
+    });
   const reveal = apps?.revealTarget;
   if (reveal)
     items.push({

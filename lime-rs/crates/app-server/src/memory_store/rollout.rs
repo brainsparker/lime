@@ -5,6 +5,7 @@ pub struct RolloutSummaryWriteParams {
     pub root: MemoryStoreRootParams,
     pub title: String,
     pub source: String,
+    pub source_thread_id: Option<String>,
     pub exported_at: String,
     pub content: String,
 }
@@ -83,6 +84,16 @@ fn rollout_summary_markdown(params: &RolloutSummaryWriteParams, content: &str) -
     if !exported_at.is_empty() {
         markdown.push_str("- exportedAt: `");
         markdown.push_str(exported_at);
+        markdown.push_str("`\n");
+    }
+    if let Some(thread_id) = params
+        .source_thread_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        markdown.push_str("- threadId: `");
+        markdown.push_str(thread_id);
         markdown.push_str("`\n");
     }
     markdown.push_str("- status: `candidate`\n\n");

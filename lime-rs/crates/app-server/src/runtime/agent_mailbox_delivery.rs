@@ -490,7 +490,11 @@ impl RuntimeCore {
                 .collect::<Vec<_>>();
             if !canonical_tail.is_empty() {
                 store
-                    .apply_canonical_events(&context.stored, &canonical_tail)
+                    .apply_canonical_events_with_media(
+                        &context.stored,
+                        &canonical_tail,
+                        self.sidecar_store.as_deref(),
+                    )
                     .map_err(|error| {
                         RuntimeCoreError::Backend(format!(
                             "failed to recover canonical child terminal tail: {error}"

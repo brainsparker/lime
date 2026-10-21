@@ -3748,15 +3748,9 @@ describe("legacySurfaceCatalog", () => {
       "code_orchestrated",
     ]);
     expect(monitor?.includePathPrefixes).toEqual([
-      "src/components/agent/chat/workspace/codingSessionOverviewProjection.ts",
       "src/components/agent/chat/workspace/workspaceConversationCodingViews.tsx",
       "src/components/agent/chat/workspace/workspaceConversationSessionViewModel.ts",
       "src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.tsx",
-      "src/components/agent/chat/workspace/CodingWorkbenchOutputPanel.tsx",
-      "src/components/agent/chat/workspace/CodingWorkbenchLogPanel.tsx",
-      "src/components/agent/chat/workspace/CodingWorkbenchActionPanel.tsx",
-      "src/components/agent/chat/workspace/CodingWorkbenchDiagnosticPanel.tsx",
-      "src/components/agent/chat/components/CanvasSessionOverviewPanel.tsx",
       "src/components/agent/chat/components/CanvasWorkbenchLayout.tsx",
       "src/components/agent/chat/components/canvas-workbench/",
     ]);
@@ -4624,7 +4618,7 @@ describe("legacySurfaceCatalog", () => {
     expect(commandMonitor?.allowedPaths).toEqual([]);
   });
 
-  it("应禁止 Coding Workbench current session overview 重新直读旧 thread item facts", () => {
+  it("应禁止 Coding Workbench current Summary 重新直读旧 thread item facts", () => {
     const monitor = legacySurfaceCatalogJson.frontendText.find(
       (entry) =>
         entry.id === "agent-chat-coding-workbench-legacy-thread-item-facts",
@@ -4643,8 +4637,6 @@ describe("legacySurfaceCatalog", () => {
     );
     expect(monitor?.includePathPrefixes).toEqual(
       expect.arrayContaining([
-        "src/components/agent/chat/components/CanvasSessionOverviewPanel.tsx",
-        "src/components/agent/chat/workspace/codingSessionOverviewProjection.ts",
         "src/components/agent/chat/workspace/workspaceConversationCodingViews.tsx",
       ]),
     );

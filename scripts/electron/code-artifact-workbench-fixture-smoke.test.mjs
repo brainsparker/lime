@@ -53,7 +53,7 @@ describe("code artifact workbench Electron fixture smoke guard", () => {
     expect(content).not.toContain("APP_SERVER_BACKEND_COMMAND: undefined");
   });
 
-  it("creates a code artifact session and opens the GUI workbench", () => {
+  it("creates a canonical thread and uses current Changes, timeline and Composer", () => {
     const content = readSmokeScript();
 
     expect(content).toContain('"thread/start"');
@@ -99,17 +99,15 @@ describe("code artifact workbench Electron fixture smoke guard", () => {
       '[data-testid^="message-list-historical-timeline-preview:"]',
     );
     expect(content).toContain('[data-testid="tool-call-row"]');
-    expect(content).toContain("collectCodingWorkbenchGuiEvidence");
-    expect(content).toContain("codingWorkbenchGuiEvidence");
-    expect(content).toContain("canvas-workbench-changes-files-toggle");
-    expect(content).toContain("filesPanelToggleClicked");
-    expect(content).not.toContain("file-changes-summary-toggle");
-    expect(content).toContain("path.basename(CODING_FILE_PATH)");
-    expect(content).toContain("present: panelText.includes(text)");
-    expect(content).toContain("panelText,");
-    expect(content).not.toMatch(
-      /panelTestId === ["']canvas-workbench-panel-changes["'][\s\S]*?\? bodyText[\s\S]*?: panelText/,
-    );
+    expect(content).toContain("collectThreadCommandEvidence");
+    expect(content).toContain("commandOutputVisible");
+    expect(content).toContain("command.aggregatedOutput");
+    expect(content).toContain("data-tool-call-id");
+    expect(content).toContain("tool-call-result-panel");
+    expect(content).toContain("openThreadChanges");
+    expect(content).toContain("selectThreadSidePanelTool");
+    expect(content).toContain("workspace-changes-surface");
+    expect(content).toContain("data-review-thread-id");
     expect(content).toContain("gui-coding-input");
     expect(content).toContain("GUI_CODING_PROMPT");
     expect(content).toContain("sendPromptFromGui");
@@ -121,34 +119,17 @@ describe("code artifact workbench Electron fixture smoke guard", () => {
       content.indexOf('logStage("open-session-after-gui-coding-input")'),
     );
     expect(guiCodingTerminalFlow).toContain("waitForCodeArtifactTurnTerminal");
-    expect(content).toContain("clickCodingWorkbenchRecovery");
-    expect(content).toContain("codingRecoveryEvidence");
-    expect(content).toContain("waitForCodingRecoveryGuiTerminal");
-    expect(content).toContain('logStage("wait-gui-recovery-terminal")');
-    expect(content).toContain('logStage("verify-session-after-recovery")');
-    expect(content).toContain("open-workbench-after-recovery");
-    expect(content).toContain("guiSessionOpenAfterRecovery");
-    expect(content).toContain("guiRecoveryTerminal");
-    expect(content).toContain("workbenchAfterRecovery");
-    const recoveryFlow = content.slice(
-      content.indexOf('logStage("wait-recovery-read-model")'),
-      content.indexOf('logStage("open-workbench-after-recovery")'),
+    expect(content).toContain("CODING_FOLLOWUP_PROMPT");
+    expect(content).toContain("waitForCodingFollowupGuiTerminal");
+    expect(content).toContain("findCodingFollowupTurnStart");
+    expect(content).toContain("followupCommandEvidence");
+    const followupFlow = content.slice(
+      content.indexOf('logStage("submit-coding-followup-from-composer")'),
+      content.indexOf('logStage("review-files-from-right-surface")'),
     );
-    expect(recoveryFlow).not.toContain("openFixtureSessionFromSidebar");
-    expect(content).toContain("coding-workbench-recovery-submit");
-    expect(content).toContain("coding_workbench_recovery");
-    expect(content).toContain("CODING_RECOVERY_PROMPT_INTRO");
-    expect(content).toContain("isCodingRecoveryPromptText");
-    expect(content).toContain("const isRecoveryTurn =");
-    expect(content).not.toContain(
-      'if (metadata.harness && typeof metadata.harness === "object")',
-    );
-    expect(content).toContain("readTurnStartApplicationMetadata");
+    expect(followupFlow).toContain("sendPromptFromGui(");
+    expect(followupFlow).not.toContain("openFixtureSessionFromSidebar");
     expect(content).toContain("readTurnStartInputText");
-    expect(content).toContain("readApplicationContextValue(");
-    expect(content).toContain("message?.params?.additionalContext");
-    expect(content).toContain('"metadata"');
-    expect(content).toContain('entry.kind !== "application"');
     expect(content).not.toContain("runtimeOptions");
     expect(content).not.toContain("runtimeRequest");
     const codingProjectionHelpers = content.slice(
@@ -162,16 +143,16 @@ describe("code artifact workbench Electron fixture smoke guard", () => {
     expect(content).toContain('item?.type === "commandExecution"');
     expect(content).toContain('item.status === "completed"');
     expect(content).toContain("item.exitCode === 0");
-    expect(content).toContain("codingRecoveryGuiSubmitted");
-    expect(content).toContain("codingRecoveryReachedBackend");
-    expect(content).toContain("codingRecoveryTraceWire");
-    expect(content).toContain("codingRecoveryReadCompleted");
+    expect(content).toContain("codingFollowupGuiSubmitted");
+    expect(content).toContain("codingFollowupReachedBackend");
+    expect(content).toContain("codingFollowupTraceWire");
+    expect(content).toContain("codingFollowupReadCompleted");
     expect(content).not.toContain("capturedRecoveryContext");
     expect(content).toContain("appServerJsonRpcObserved");
     expect(content).toContain("backendTurnStartObserved");
     expect(content).toContain("canonicalSessionIdentity:");
-    expect(content).toContain("codingRecoveryCanonicalIdentity:");
-    expect(content).toContain("codingRecoveryTraceThreadIdentity:");
+    expect(content).toContain("codingFollowupCanonicalIdentity:");
+    expect(content).toContain("codingFollowupTraceThreadIdentity:");
     expect(content).toContain("assertNoRendererErrors");
     expect(content).toContain("Electron renderer console error");
     expect(content).toContain("Electron renderer page error");
@@ -181,13 +162,8 @@ describe("code artifact workbench Electron fixture smoke guard", () => {
     expect(content).toContain("lime:agent-runtime-sessions-changed");
     expect(content).toContain('reason: "external"');
     expect(content).toContain("workspaceId");
-    expect(content).toContain("codingChangesEvidencePresent");
-    expect(content).toContain("codingOutputsEvidencePresent");
-    expect(content).toContain("codingLogsEvidencePresent");
-    expect(content).toContain("data-canvas-tab-key");
-    expect(content).toContain("canvas-workbench-panel-changes");
-    expect(content).toContain("canvas-workbench-panel-outputs");
-    expect(content).toContain("canvas-workbench-panel-logs");
+    expect(content).toContain("threadChangesOpened");
+    expect(content).toContain("commandOutputVisible");
     expect(content).toContain("canonicalFileItem");
     expect(content).toContain("canonicalCommandItem");
     expect(content).not.toContain('type: "file.changed"');
@@ -268,7 +244,7 @@ describe("code artifact workbench Electron fixture smoke guard", () => {
     expect(content).toContain("CODE_ARTIFACT_WORKBENCH_DONE");
     expect(content).toContain("waitForFixtureSessionOpenedFromSidebar");
     expect(content).not.toContain('"lime:task-center:open-task"');
-    expect(content).toContain("openWorkbench");
+    expect(content).toContain("openThreadChanges");
     expect(content).toContain("hasUserPrompt");
     expect(content).toContain("function hasHydratedSessionSnapshot(snapshot)");
     expect(content).not.toContain("hasGuiCodingInputHydratedSession");
@@ -276,44 +252,18 @@ describe("code artifact workbench Electron fixture smoke guard", () => {
       "guiHydratedSession: hasHydratedSessionSnapshot(",
     );
     expect(content).not.toContain("hasToolTimelineText");
-    expect(content).toContain("hasTaskCenterShell");
-    expect(content).toContain("hasTaskCenterWorkbenchTab");
-    expect(content).toContain("task-center-chrome-shell");
-    expect(content).toContain("task-center-tab-workbench");
-    expect(content).toContain("theme-workbench-harness-toggle");
-    expect(content).toContain("general-workbench-sidebar");
-    expect(content).toContain("hasWorkbenchEntry");
-    expect(content).toContain("artifact-workbench-shell");
-    expect(content).toContain("canvas-workbench-shell");
-    expect(content).toContain("canvas-workbench-layout");
+    expect(content).toContain("snapshot.sessionMatches === true");
     expect(content).toContain("代码产物会话未在 GUI 中完成 hydrate:");
-    expect(content).toContain("canvas-workbench-panel-");
-    expect(content).toContain("visibleWorkbenchRoot");
-    expect(content).toContain(
-      'root.querySelectorAll(`[data-canvas-tab-key="${key}"]`)',
-    );
-    expect(content).toContain(
-      "root.querySelectorAll('[data-canvas-tab-key=\"outputs\"]')",
-    );
-    expect(content).toContain(
-      "root.querySelectorAll('[data-testid=\"canvas-workbench-panel-outputs\"]')",
-    );
-    expect(content).not.toContain(
-      'document.querySelectorAll(`[data-canvas-tab-key="${key}"]`)',
-    );
-    expect(content).not.toContain(
-      "document.querySelectorAll('[data-canvas-tab-key=\"outputs\"]')",
-    );
     expect(content).not.toContain("const sourceText =");
     expect(content).toContain('window.dispatchEvent(new Event("focus"))');
   });
 
-  it("keeps recovery execution identities turn-scoped while preserving failure source refs", () => {
+  it("keeps ordinary followup execution identities scoped to the new canonical turn", () => {
     const content = readSmokeScript();
 
     expect(content).toContain("const turnScopedExecutionId = (baseId) =>");
     expect(content).toContain(
-      'isRecoveryTurn || isReviewTurn ? baseId + ":" + turnId : baseId',
+      'isFollowupTurn || isReviewTurn ? baseId + ":" + turnId : baseId',
     );
     expect(content).toContain(
       'const assistantItemId = turnScopedExecutionId("code-artifact-workbench-electron:assistant")',
@@ -334,19 +284,17 @@ describe("code artifact workbench Electron fixture smoke guard", () => {
     expect(content).toContain("call_id: toolCallId");
     expect(content).toContain("itemId: fileChangeItemId");
     expect(content).toContain("executionIds: {");
-    expect(content).toContain("recoveryExecutionIdsTurnScoped:");
-    expect(content).toContain("recoveryExecutionIds.length === 4");
+    expect(content).toContain("followupExecutionIdsTurnScoped:");
+    expect(content).toContain("followupExecutionIds.length === 4");
     expect(content).toContain(
-      "executionId.endsWith(`:${backendRecoveryTurnStart.turnId}`)",
+      "executionId.endsWith(`:${backendFollowupTurnStart.turnId}`)",
     );
     expect(content).not.toContain('itemId: "${TOOL_CALL_ID}"');
     expect(content).not.toContain('patchId: "${CODING_PATCH_ID}"');
     expect(content).not.toContain('commandId: "${CODING_COMMAND_ID}"');
     expect(content).not.toContain('testRunId: "${CODING_TEST_RUN_ID}"');
-    expect(content).toContain("guiRecoveryCommandId.length > 0");
-    expect(content).toContain("guiRecoveryTestRunId.length > 0");
-    expect(content).toContain("guiRecoveryCommandId");
-    expect(content).toContain("guiRecoveryTestRunId");
+    expect(content).toContain("summary.followupCommandEvidence.turnId");
+    expect(content).toContain("codingFollowupTraceThreadIdentity:");
   });
 
   it("keeps review-start on a dedicated message lifecycle without exposing its internal prompt", () => {
@@ -392,7 +340,10 @@ describe("code artifact workbench Electron fixture smoke guard", () => {
 
   it("always replaces backend ledger evidence on a failed Gate B run", () => {
     const content = readSmokeScript();
-    const catchStart = content.lastIndexOf("  } catch (error) {");
+    const catchStart = content.indexOf(
+      "  } catch (error) {",
+      content.indexOf("async function run()"),
+    );
     const finallyStart = content.indexOf("  } finally {", catchStart);
     const failureBranch = content.slice(catchStart, finallyStart);
 
@@ -403,6 +354,46 @@ describe("code artifact workbench Electron fixture smoke guard", () => {
     expect(failureBranch.indexOf("persistBackendLedgerEvidence(")).toBeLessThan(
       failureBranch.indexOf("writeJsonFile(summaryPath, summary)"),
     );
+  });
+
+  it("rejects retired workbench navigation and synthetic recovery contracts", () => {
+    const content = readSmokeScript();
+    for (const retired of [
+      "task-center-workbench-toggle",
+      "task-center-tab-workbench",
+      "task-center-chrome-shell",
+      "theme-workbench-harness-toggle",
+      "toggle-harness",
+      "general-workbench-sidebar",
+      "artifact-workbench-shell",
+      "canvas-workbench-shell",
+      "canvas-workbench-layout",
+      "data-canvas-tab-key",
+      "canvas-workbench-panel-outputs",
+      "canvas-workbench-panel-logs",
+      "coding-workbench-recovery-submit",
+      "coding_workbench_recovery",
+      "coding-workbench-recovery/v1",
+      "hasSessionWorkbenchAnchor",
+      "openWorkbench",
+    ]) {
+      expect(content, retired).not.toContain(retired);
+    }
+  });
+
+  it("binds the executed sidecar to fresh artifacts and keeps drift a failed Gate", () => {
+    const content = readSmokeScript();
+
+    expect(content).toContain("electronAppServerBinaryDestination");
+    expect(content).not.toContain("resolveDevAppServerBinary");
+    expect(content).toContain("inspectElectronFixtureBuildFreshness");
+    expect(content).toContain(
+      "file.file === summary.appServerExecutableRelativePath",
+    );
+    expect(content).toContain("summary.appServerExecutableSha256");
+    const finalGate = content.slice(content.lastIndexOf("    summary.ok ="));
+    expect(finalGate).toContain("summary.assertions.artifactInputsStable");
+    expect(finalGate).toContain("summary.assertions.normalMainExit");
   });
 
   it("does not use legacy commands or renderer mock fallback as success evidence", () => {

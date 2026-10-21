@@ -24,7 +24,7 @@ pub(super) fn finish(
     let has_plan = completed.plan_revision_cursor > 0;
     let mut visible_text = String::new();
     let mut plans = Vec::new();
-    let closed = completed.finished_plans;
+    let closed = &completed.finished_plans;
     for segment in segments {
         match segment {
             ProposedPlanSegment::MessageDelta(text) => visible_text.push_str(&text),
@@ -40,10 +40,13 @@ pub(super) fn finish(
     }
     if !has_plan {
         // Whitespace-only ordinary messages remain authoritative, too.
-        visible_text = text.to_string();
+        let mut citation_parser = super::CitationParser::default();
+        visible_text = citation_parser.push_str(text);
+        visible_text.push_str(&citation_parser.finish());
     }
     let has_message_output =
         !has_plan || completed.message_output_emitted || previous.message_output_emitted;
+    let memory_citation = completed.memory_citation();
     parser.message_output_emitted |= has_message_output;
     Ok(FinishedMessage {
         events: segments_to_runtime_events(plans, Some(item_id), &previous.source_payload),
@@ -51,6 +54,7 @@ pub(super) fn finish(
         has_message_output,
         text: Some(visible_text),
         needs_start: !previous.message_output_emitted,
+        memory_citation,
     })
 }
 

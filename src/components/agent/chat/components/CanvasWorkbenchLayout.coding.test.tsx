@@ -437,17 +437,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       onOpenPath: vi.fn(async () => undefined),
       onRevealPath: vi.fn(async () => undefined),
       workbenchMode: "coding",
-      outputView: {
-        tabBadge: "1",
-        leadContent: (
-          <div data-testid="output-lead-probe">失败输出修复入口</div>
-        ),
-        renderPanel: () => <div data-testid="output-view">输出摘要</div>,
-      },
-      logView: {
-        tabBadge: "运行中",
-        renderPanel: () => <div data-testid="log-view">运行日志</div>,
-      },
       topRightTools: <div data-testid="task-center-toolbar-probe">toolbar</div>,
     });
 

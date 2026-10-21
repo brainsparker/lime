@@ -68,7 +68,7 @@ impl RuntimeCore {
             )
         })?;
         projection_store
-            .apply_canonical_events(stored, &replay)
+            .apply_canonical_events_with_media(stored, &replay, self.sidecar_store.as_deref())
             .map_err(|error| {
                 RuntimeCoreError::Backend(format!(
                     "canonical mailbox Item recovery failed after EventLog append: {error}"

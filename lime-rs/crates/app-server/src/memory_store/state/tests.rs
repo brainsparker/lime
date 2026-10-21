@@ -53,9 +53,6 @@ fn phase2_commit_never_selects_newer_snapshot_at_the_same_path() {
         let unchanged = extract(&store, "stable.md", "unchanged", "1");
         assert!(store.try_claim_phase2("global", "phase2", 60).unwrap());
         let newer = extract(&store, "same.md", content, updated_at);
-        assert!(!store
-            .stage2_snapshot_is_current("global", &original)
-            .unwrap());
         assert!(store
             .commit_phase2_snapshot("global", "phase2", 42, &[original, unchanged])
             .unwrap());
@@ -140,24 +137,6 @@ fn registering_identical_source_preserves_extraction_selection_and_running_lease
     assert!(store
         .heartbeat_stage1("global", "same.md", "extractor", 60)
         .unwrap());
-}
-
-#[test]
-fn phase2_review_only_changes_the_selected_source_version() {
-    let temp = tempfile::tempdir().unwrap();
-    let store = MemoryStateStore::new(temp.path());
-    let original = extract(&store, "same.md", "candidate", "1");
-    let newer = extract(&store, "same.md", "changed", "2");
-    assert!(store
-        .try_claim_stage1("global", "same.md", "running", 60, 8)
-        .unwrap());
-    assert!(!store.mark_stage2_review("global", &original).unwrap());
-    assert_eq!(selection(&store, "same.md"), ("leased".into(), false));
-    assert!(store
-        .heartbeat_stage1("global", "same.md", "running", 60)
-        .unwrap());
-    assert!(store.mark_stage2_review("global", &newer).unwrap());
-    assert_eq!(selection(&store, "same.md"), ("review".into(), false));
 }
 
 #[test]
@@ -257,6 +236,62 @@ fn phase2_snapshot_commits_watermark_and_selected_sources_together() {
         .commit_phase2_snapshot("global", "owner-a", 42, &[snapshot])
         .expect("commit"));
     assert_eq!(store.count_consolidated("global").expect("count"), 1);
+}
+
+#[test]
+fn citation_usage_resolves_exported_source_thread_identity() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = MemoryStateStore::new(temp.path());
+    let content = "# rollout\n\n- threadId: `thread-1`\n";
+    store
+        .register_rollout(
+            "global",
+            "rollout.md",
+            content,
+            &test_now_seconds().to_string(),
+        )
+        .unwrap();
+    assert!(store
+        .try_claim_stage1("global", "rollout.md", "worker", 60, 8)
+        .unwrap());
+    assert!(store
+        .save_stage1_output(
+            "global",
+            "rollout.md",
+            "worker",
+            StageOneOutputSnapshot {
+                source_path: "rollout.md".into(),
+                content_hash: hash_content(content),
+                source_updated_at: test_now_seconds().to_string(),
+                raw_memory: Some("fact".into()),
+                rollout_summary: "summary".into(),
+                rollout_slug: None,
+            },
+        )
+        .unwrap());
+    assert_eq!(
+        store
+            .record_stage1_usage_for_thread_ids("global", &["thread-1"])
+            .unwrap(),
+        1
+    );
+    let usage: i64 = store
+        .open()
+        .unwrap()
+        .query_row(
+            "SELECT usage_count FROM memory_rollout_jobs WHERE scope_key = 'global' AND source_path = 'rollout.md'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(usage, 1);
+}
+
+fn test_now_seconds() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
 }
 
 #[test]

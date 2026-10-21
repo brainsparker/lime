@@ -16,7 +16,10 @@ const reporterPath = fileURLToPath(
 );
 const composerMonitorId = "retired-primary-composer-textarea-adapter";
 
-function scanFixture(files: Record<string, string>) {
+function scanFixture(
+  files: Record<string, string>,
+  monitorId = composerMonitorId,
+) {
   const directory = fs.realpathSync(
     fs.mkdtempSync(path.join(os.tmpdir(), "lime-composer-legacy-guard-")),
   );
@@ -39,7 +42,7 @@ function scanFixture(files: Record<string, string>) {
     expect(result.error).toBeUndefined();
     const report = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     const monitor = report.frontendTextResults.find(
-      (entry: { id: string }) => entry.id === composerMonitorId,
+      (entry: { id: string }) => entry.id === monitorId,
     );
     expect(monitor).toBeDefined();
     return { status: result.status, monitor, report };
@@ -50,10 +53,72 @@ function scanFixture(files: Record<string, string>) {
 
 describe("legacy-surface-report-core", () => {
   it.each([
+    "import { CodingWorkbenchRecoveryPanel } from './CodingWorkbenchRecoveryPanel';",
+    "export const submit = { onSubmitRecoveryPrompt: send };",
+    "export const metadata = { harness: { coding_workbench_recovery: context } };",
+  ])("真实 report 应拒绝恢复专用 Workbench Recovery 合同：%s", (source) => {
+    const owner =
+      "src/components/agent/chat/workspace/workspaceConversationCodingViews.tsx";
+    const result = scanFixture(
+      { [owner]: source },
+      "retired-workbench-recovery-contract",
+    );
+
+    expect(result.monitor.violations).toEqual([owner]);
+    expect(result.status).toBe(1);
+  });
+
+  it("Recovery 清退守卫允许 canonical 失败恢复和 checkpoint owner", () => {
+    const result = scanFixture(
+      {
+        "src/components/agent/chat/hooks/agentSilentTurnRecovery.ts":
+          "export const recover = { threadId, turnId, status: 'failed' };",
+        "src/components/agent/chat/workspace/workspaceConversationCodingViews.tsx":
+          "export const changeView = { fileCheckpointSummary, onOpenFile };",
+      },
+      "retired-workbench-recovery-contract",
+    );
+
+    expect(result.monitor.violations).toEqual([]);
+    expect(result.status).toBe(0);
+  });
+
+  it.each([
+    "export const views = { logView: renderPanel };",
+    "export const panel = <CanvasWorkbenchLayout logView={view} />;",
+    "import { CodingWorkbenchLogPanel } from './CodingWorkbenchLogPanel';",
+  ])("真实 report 应拒绝恢复旧 Workbench 日志接线：%s", (source) => {
+    const owner =
+      "src/components/agent/chat/workspace/workspaceConversationCodingViews.tsx";
+    const result = scanFixture(
+      { [owner]: source },
+      "retired-workbench-log-projection",
+    );
+
+    expect(result.monitor.violations).toEqual([owner]);
+    expect(result.status).toBe(1);
+  });
+
+  it("日志清退守卫允许正常 dialogView 与独立设置日志", () => {
+    const result = scanFixture(
+      {
+        "src/components/agent/chat/workspace/ConfirmDialog.tsx":
+          "export const dialogView = <Dialog />;",
+        "src/components/settings-v2/system/channels/ChannelLogs.tsx":
+          "export const logView = <ChannelLogs />;",
+      },
+      "retired-workbench-log-projection",
+    );
+
+    expect(result.monitor.violations).toEqual([]);
+    expect(result.status).toBe(0);
+  });
+
+  it.each([
     {
       owner: "src/components/input-kit/ComposerEditor.tsx",
       source:
-        "export function ComposerEditor() { return <textarea aria-label=\"Message\" />; }",
+        'export function ComposerEditor() { return <textarea aria-label="Message" />; }',
     },
     {
       owner: "src/components/input-kit/ComposerController.ts",
@@ -68,7 +133,7 @@ describe("legacy-surface-report-core", () => {
     {
       owner: "src/components/agent/chat/components/EmptyState.tsx",
       source:
-        "export function EmptyState() { return <textarea aria-label=\"New conversation\" />; }",
+        'export function EmptyState() { return <textarea aria-label="New conversation" />; }',
     },
   ])("$owner 恢复旧主输入适配器时真实 report 必须拒绝", ({ owner, source }) => {
     const result = scanFixture({ [owner]: source });

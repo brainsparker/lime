@@ -2477,6 +2477,7 @@
       "GuardianUserAuthorization",
       "GuardianWarningNotification",
       "HookErrorInfo",
+      "HookHandlerMetadata",
       "HookMetadata",
       "HookOutputEntry",
       "HookOutputEntryKind",

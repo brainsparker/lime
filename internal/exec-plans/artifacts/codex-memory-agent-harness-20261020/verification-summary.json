@@ -1,6 +1,6 @@
 {
   "status": "active",
-  "scope": "Memory phase-2 lease/exact snapshot prerequisites and shared ephemeral session storage; restricted consolidation Agent remains incomplete",
+  "scope": "Shared restricted Memory Agent implementation, cancellation drain and tool-less phase1 sampling; final source/binary validation in progress",
   "reference": "reference-identity.json",
   "source_freeze": "source-freeze.json",
   "classification": {
@@ -914,7 +914,7 @@
     },
     "initial_source_freeze": "ephemeral-source-freeze.json"
   },
-  "updatedAt": "2026-10-20T12:10:00.426475+00:00",
+  "updatedAt": "2026-10-20T17:22:51.476Z",
   "sandbox_execution_prerequisite": {
     "status": "core_complete_product_gate_partial",
     "source_freeze": "sandbox-source-freeze.json",
@@ -973,6 +973,129 @@
       "fixed current shared runtime loopback provider/tool and route switch; normal exits 2",
       "real Electron shell smoke 24/24, exit 0",
       "32 frozen source/generated/upstream hashes unchanged"
+    ]
+  },
+  "memory_agent": {
+    "status": "implementation-validated-on-fixed-runtime-artifact; product-wide-alignment-active",
+    "source_freeze": "memory-agent-source-freeze.json",
+    "classification": {
+      "current": [
+        "same RuntimeCore Memory Agent and typed internal capability",
+        "phase1 single-sample current provider client",
+        "native filesystem helper on existing OS process supervisor",
+        "workspace diff/artifacts/fresh baseline/exact commit"
+      ],
+      "compat": [],
+      "deprecated": [],
+      "deleted": [
+        "phase2 direct sampling and JSON proposal parser",
+        "unused direct-generation Agent wrappers",
+        "persisted session usage fallback in single sampling"
+      ]
+    },
+    "checks": [
+      {
+        "command": "Rust memory_ four-crate unit filter",
+        "passed": 87,
+        "exitCode": 0,
+        "log": "memory-agent-unit-drain-final.log",
+        "qualification": "before phase1 and parent cancellation token fixes; not final source proof"
+      },
+      {
+        "command": "tool-runtime cancel-safe process wait regression",
+        "passed": 1,
+        "exitCode": 0,
+        "log": "memory-agent-cancel-wait.log"
+      },
+      {
+        "command": "App Server memory_filesystem and command_exec_jsonrpc",
+        "passed": 5,
+        "exitCode": 0,
+        "log": "memory-agent-filesystem-stdio-rpath.log",
+        "qualification": "actual native write/deny and stdio/PTY boundary; binary predates final sampling/parent token fixes"
+      },
+      {
+        "command": "npm run test:contracts",
+        "exitCode": 1,
+        "log": "memory-agent-contracts-sampling.log",
+        "reason": "parallel GUI guard still requires openWorkbench/workbenchOpened"
+      },
+      {
+        "command": "node scripts/check-harness-contracts.mjs",
+        "exitCode": 0,
+        "log": "memory-agent-harness-sampling.log"
+      },
+      {
+        "command": "npm run governance:legacy-report",
+        "exitCode": 0,
+        "log": "memory-agent-legacy-sampling.log",
+        "violations": 0
+      },
+      {
+        "command": "npm run governance:scripts",
+        "exitCode": 0,
+        "log": "memory-agent-scripts-sampling.log"
+      },
+      {
+        "command": "memory-agent-fixture allow",
+        "passed": 1,
+        "exitCode": 0,
+        "binarySha256": "5aa081fd9aa00fffbbaa993061392f980fd1d711bc463561765725e86390ce44",
+        "log": "memory-agent-allow-final.log",
+        "level": "real stdio + RuntimeBackend + OpenAI-compatible loopback provider",
+        "claims": [
+          "phase1 strict zero-tool extraction",
+          "shared RuntimeCore internal Agent",
+          "exec continuation",
+          "native apply_patch",
+          "ephemeral shutdown",
+          "exact selection/watermark",
+          "no private history persistence"
+        ],
+        "limits": [
+          "controlled loopback provider",
+          "OpenAI Responses only",
+          "not live/four-protocol/Windows/Linux/packaged/CLI/TUI/GUI"
+        ]
+      },
+      {
+        "command": "memory-agent-fixture block",
+        "passed": 1,
+        "exitCode": 0,
+        "binarySha256": "5aa081fd9aa00fffbbaa993061392f980fd1d711bc463561765725e86390ce44",
+        "log": "memory-agent-block-final.log",
+        "level": "Codex source-aligned Stop hook filtering",
+        "claims": [
+          "ordinary User Stop hook is discovered and trusted",
+          "MemoryConsolidation filters User hook",
+          "Agent still completes and commits"
+        ],
+        "limits": [
+          "does not prove managed/System Stop rejection; unit coverage remains the source of that contract"
+        ]
+      },
+      {
+        "command": "memory-agent-fixture abort",
+        "passed": 1,
+        "exitCode": 0,
+        "binarySha256": "5aa081fd9aa00fffbbaa993061392f980fd1d711bc463561765725e86390ce44",
+        "log": "memory-agent-abort-final.log",
+        "level": "Codex source-aligned Stop hook filtering",
+        "claims": [
+          "ordinary User Stop hook is discovered and trusted",
+          "MemoryConsolidation filters User hook",
+          "Agent still completes and commits"
+        ],
+        "limits": [
+          "does not prove managed/System Stop rejection; unit coverage remains the source of that contract"
+        ]
+      }
+    ],
+    "remaining": [
+      "same binary shared ephemeral route-switch fixture",
+      "fresh GUI shell smoke after final production rebuild",
+      "four protocols and platform/packaged evidence tracked separately",
+      "CLI/TUI and LimeCore end-to-end product acceptance"
     ]
   }
 }

@@ -26008,10 +26008,81 @@
       "title": "HookErrorInfo",
       "type": "object"
     },
+    "HookHandlerMetadata": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "properties": {
+            "async": {
+              "default": false,
+              "type": "boolean"
+            },
+            "command": {
+              "type": "string"
+            },
+            "handlerType": {
+              "const": "command",
+              "type": "string"
+            }
+          },
+          "required": [
+            "command",
+            "handlerType"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "handlerType": {
+              "const": "mcpTool",
+              "type": "string"
+            },
+            "server": {
+              "type": "string"
+            },
+            "tool": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "handlerType",
+            "server",
+            "tool"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "handlerType": {
+              "const": "prompt",
+              "type": "string"
+            }
+          },
+          "required": [
+            "handlerType"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "handlerType": {
+              "const": "agent",
+              "type": "string"
+            }
+          },
+          "required": [
+            "handlerType"
+          ],
+          "type": "object"
+        }
+      ],
+      "title": "HookHandlerMetadata"
+    },
     "HookMetadata": {
       "$defs": {
         "HookEventName": {
           "enum": [
+            "interrupt",
             "permissionRequest",
             "postCompact",
             "postToolUse",
@@ -26023,21 +26094,6 @@
             "subagentStart",
             "subagentStop",
             "userPromptSubmit"
-          ],
-          "type": "string"
-        },
-        "HookExecutionMode": {
-          "enum": [
-            "async",
-            "sync"
-          ],
-          "type": "string"
-        },
-        "HookHandlerType": {
-          "enum": [
-            "agent",
-            "command",
-            "prompt"
           ],
           "type": "string"
         },
@@ -26068,6 +26124,72 @@
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "properties": {
+            "async": {
+              "default": false,
+              "type": "boolean"
+            },
+            "command": {
+              "type": "string"
+            },
+            "handlerType": {
+              "const": "command",
+              "type": "string"
+            }
+          },
+          "required": [
+            "command",
+            "handlerType"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "handlerType": {
+              "const": "mcpTool",
+              "type": "string"
+            },
+            "server": {
+              "type": "string"
+            },
+            "tool": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "handlerType",
+            "server",
+            "tool"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "handlerType": {
+              "const": "prompt",
+              "type": "string"
+            }
+          },
+          "required": [
+            "handlerType"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "handlerType": {
+              "const": "agent",
+              "type": "string"
+            }
+          },
+          "required": [
+            "handlerType"
+          ],
+          "type": "object"
+        }
+      ],
       "properties": {
         "additionalContextLimit": {
           "format": "uint",
@@ -26075,12 +26197,6 @@
           "type": [
             "integer",
             "null"
-          ]
-        },
-        "command": {
-          "type": [
-            "null",
-            "string"
           ]
         },
         "currentHash": {
@@ -26095,13 +26211,6 @@
         },
         "eventName": {
           "$ref": "#/$defs/HookEventName"
-        },
-        "executionMode": {
-          "$ref": "#/$defs/HookExecutionMode",
-          "default": "sync"
-        },
-        "handlerType": {
-          "$ref": "#/$defs/HookHandlerType"
         },
         "isManaged": {
           "type": "boolean"
@@ -26147,7 +26256,6 @@
         "displayOrder",
         "enabled",
         "eventName",
-        "handlerType",
         "isManaged",
         "key",
         "source",
@@ -26220,6 +26328,7 @@
       "$defs": {
         "HookEventName": {
           "enum": [
+            "interrupt",
             "permissionRequest",
             "postCompact",
             "postToolUse",
@@ -26245,6 +26354,7 @@
           "enum": [
             "agent",
             "command",
+            "mcpTool",
             "prompt"
           ],
           "type": "string"
@@ -26404,6 +26514,7 @@
         },
         "HookEventName": {
           "enum": [
+            "interrupt",
             "permissionRequest",
             "postCompact",
             "postToolUse",
@@ -26418,22 +26529,73 @@
           ],
           "type": "string"
         },
-        "HookExecutionMode": {
-          "enum": [
-            "async",
-            "sync"
-          ],
-          "type": "string"
-        },
-        "HookHandlerType": {
-          "enum": [
-            "agent",
-            "command",
-            "prompt"
-          ],
-          "type": "string"
-        },
         "HookMetadata": {
+          "oneOf": [
+            {
+              "properties": {
+                "async": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "command": {
+                  "type": "string"
+                },
+                "handlerType": {
+                  "const": "command",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "command",
+                "handlerType"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "handlerType": {
+                  "const": "mcpTool",
+                  "type": "string"
+                },
+                "server": {
+                  "type": "string"
+                },
+                "tool": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "handlerType",
+                "server",
+                "tool"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "handlerType": {
+                  "const": "prompt",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "handlerType"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "handlerType": {
+                  "const": "agent",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "handlerType"
+              ],
+              "type": "object"
+            }
+          ],
           "properties": {
             "additionalContextLimit": {
               "format": "uint",
@@ -26441,12 +26603,6 @@
               "type": [
                 "integer",
                 "null"
-              ]
-            },
-            "command": {
-              "type": [
-                "null",
-                "string"
               ]
             },
             "currentHash": {
@@ -26461,13 +26617,6 @@
             },
             "eventName": {
               "$ref": "#/$defs/HookEventName"
-            },
-            "executionMode": {
-              "$ref": "#/$defs/HookExecutionMode",
-              "default": "sync"
-            },
-            "handlerType": {
-              "$ref": "#/$defs/HookHandlerType"
             },
             "isManaged": {
               "type": "boolean"
@@ -26513,7 +26662,6 @@
             "displayOrder",
             "enabled",
             "eventName",
-            "handlerType",
             "isManaged",
             "key",
             "source",
@@ -26614,6 +26762,7 @@
         },
         "HookEventName": {
           "enum": [
+            "interrupt",
             "permissionRequest",
             "postCompact",
             "postToolUse",
@@ -26628,22 +26777,73 @@
           ],
           "type": "string"
         },
-        "HookExecutionMode": {
-          "enum": [
-            "async",
-            "sync"
-          ],
-          "type": "string"
-        },
-        "HookHandlerType": {
-          "enum": [
-            "agent",
-            "command",
-            "prompt"
-          ],
-          "type": "string"
-        },
         "HookMetadata": {
+          "oneOf": [
+            {
+              "properties": {
+                "async": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "command": {
+                  "type": "string"
+                },
+                "handlerType": {
+                  "const": "command",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "command",
+                "handlerType"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "handlerType": {
+                  "const": "mcpTool",
+                  "type": "string"
+                },
+                "server": {
+                  "type": "string"
+                },
+                "tool": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "handlerType",
+                "server",
+                "tool"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "handlerType": {
+                  "const": "prompt",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "handlerType"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "handlerType": {
+                  "const": "agent",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "handlerType"
+              ],
+              "type": "object"
+            }
+          ],
           "properties": {
             "additionalContextLimit": {
               "format": "uint",
@@ -26651,12 +26851,6 @@
               "type": [
                 "integer",
                 "null"
-              ]
-            },
-            "command": {
-              "type": [
-                "null",
-                "string"
               ]
             },
             "currentHash": {
@@ -26671,13 +26865,6 @@
             },
             "eventName": {
               "$ref": "#/$defs/HookEventName"
-            },
-            "executionMode": {
-              "$ref": "#/$defs/HookExecutionMode",
-              "default": "sync"
-            },
-            "handlerType": {
-              "$ref": "#/$defs/HookHandlerType"
             },
             "isManaged": {
               "type": "boolean"
@@ -26723,7 +26910,6 @@
             "displayOrder",
             "enabled",
             "eventName",
-            "handlerType",
             "isManaged",
             "key",
             "source",
@@ -42383,6 +42569,7 @@
         },
         "HookEventName": {
           "enum": [
+            "interrupt",
             "permissionRequest",
             "postCompact",
             "postToolUse",
@@ -43261,6 +43448,7 @@
       "$defs": {
         "HookEventName": {
           "enum": [
+            "interrupt",
             "permissionRequest",
             "postCompact",
             "postToolUse",
@@ -45574,6 +45762,7 @@
         },
         "HookEventName": {
           "enum": [
+            "interrupt",
             "permissionRequest",
             "postCompact",
             "postToolUse",
@@ -61509,6 +61698,7 @@
         },
         "HookEventName": {
           "enum": [
+            "interrupt",
             "permissionRequest",
             "postCompact",
             "postToolUse",
@@ -61534,6 +61724,7 @@
           "enum": [
             "agent",
             "command",
+            "mcpTool",
             "prompt"
           ],
           "type": "string"

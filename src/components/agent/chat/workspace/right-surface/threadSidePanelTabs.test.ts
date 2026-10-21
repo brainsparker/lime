@@ -16,6 +16,30 @@ import {
 const empty: ThreadSidePanelTabs = { tabs: [], activeTabId: null, open: false };
 
 describe("Thread side panel tab identity", () => {
+  it("Recents打开只替换原New tab实例，重用ID和迟到点击不能复活旧标签", () => {
+    const source = { tabId: "new", kind: "workspace-new-tab" as const };
+    let state = openSidePanelTab(empty, source);
+    state = openSidePanelTab(state, {
+      tabId: "other-new",
+      kind: "workspace-new-tab",
+    });
+    const opened = openWorkspaceFile(state, "/project/report.pdf", {
+      sourceTab: source,
+    });
+    expect(opened.tabs.map((tab) => tab.tabId)).toEqual([
+      "file:/project/report.pdf",
+      "other-new",
+    ]);
+    expect(opened.activeTabId).toBe("file:/project/report.pdf");
+    expect(
+      openWorkspaceFile(opened, "/project/late.pdf", { sourceTab: source }),
+    ).toBe(opened);
+    state = closeSidePanelTab(state, source.tabId);
+    state = openSidePanelTab(state, { ...source });
+    expect(
+      openWorkspaceFile(state, "/project/late.pdf", { sourceTab: source }),
+    ).toBe(state);
+  });
   it("终端按session标签身份共存，重选和关闭不影响另一终端", () => {
     const first = { tabId: "terminal-1", kind: "shell" as const };
     const second = { tabId: "terminal-2", kind: "shell" as const };

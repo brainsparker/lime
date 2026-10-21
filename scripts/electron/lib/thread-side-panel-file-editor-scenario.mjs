@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { targetSnapshot } from "./workspace-file-menu-fixture.mjs";
 
 async function waitForDisk(filePath, expected, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
@@ -56,9 +57,22 @@ export async function collectFileEditorEvidence(
     "File breadcrumb uses the shared pane toolbar height",
   );
   const fileActions = page.locator("[data-artifact-preview-header]:visible");
+  const targets = await targetSnapshot(page, firstPath, workspace.rootPath);
+  const primaryLabel = targets.primary
+    ? `在 ${
+        targets.primary.id === "systemDefault"
+          ? "默认应用"
+          : targets.primary.label === "File Manager"
+            ? "文件管理器"
+            : targets.primary.label
+      } 中打开`
+    : "打开";
+  await fileActions
+    .getByRole("button", { name: primaryLabel, exact: true })
+    .waitFor({ state: "visible", timeout: options.timeoutMs });
   assert.equal(
     await fileActions
-      .getByRole("button", { name: "打开", exact: true })
+      .getByRole("button", { name: primaryLabel, exact: true })
       .count(),
     1,
   );
@@ -70,7 +84,27 @@ export async function collectFileEditorEvidence(
   await page.keyboard.press("ArrowDown");
   const fileMenu = page.locator("[data-artifact-preview-menu]:visible");
   await fileMenu.waitFor({ state: "visible", timeout: options.timeoutMs });
+  const expectedTargets = targets.visibleTargets.filter(
+    (target) => target.target !== "fileManager",
+  );
+  const expectedIds = expectedTargets.map((target) => target.id);
+  await page.waitForFunction(
+    (expected) => {
+      const actual = Array.from(
+        document.querySelectorAll(
+          "[data-artifact-preview-menu] [data-open-in-target]",
+        ),
+        (node) => node.getAttribute("data-open-in-target"),
+      );
+      return JSON.stringify(actual) === JSON.stringify(expected);
+    },
+    expectedIds,
+    { timeout: options.timeoutMs },
+  );
   assert.deepEqual(await fileMenu.getByRole("menuitem").allTextContents(), [
+    ...expectedTargets.map((target) =>
+      target.id === "systemDefault" ? "默认应用" : target.label,
+    ),
     "在文件夹中打开",
     "另存为…",
   ]);
@@ -103,10 +137,16 @@ export async function collectFileEditorEvidence(
   const directoryNames = await directory
     .locator("button[title]")
     .allTextContents();
+  const expectedDirectoryNames = [
+    file.nestedRelativePath.split("/")[0],
+    file.relativePath,
+    file.markdownRelativePath,
+    file.secondRelativePath,
+  ];
   assert.deepEqual(
     directoryNames,
-    [file.relativePath, file.markdownRelativePath, file.secondRelativePath],
-    "Sibling files use name order without Markdown priority",
+    expectedDirectoryNames,
+    "The nested fixture directory comes first; sibling files use name order without Markdown priority",
   );
   assert.equal(
     await directory.evaluate((node) => node.getBoundingClientRect().height),
@@ -129,11 +169,11 @@ export async function collectFileEditorEvidence(
   );
   assert.deepEqual(
     rowSemantics.map((row) => [row.level, row.position, row.setSize]),
-    [
-      ["1", "1", "3"],
-      ["1", "2", "3"],
-      ["1", "3", "3"],
-    ],
+    expectedDirectoryNames.map((_, index) => [
+      "1",
+      String(index + 1),
+      String(expectedDirectoryNames.length),
+    ]),
   );
   assert.equal(rowSemantics.filter((row) => row.selected === "true").length, 1);
   await siblingRows.first().focus();
@@ -381,11 +421,21 @@ export async function collectFileEditorEvidence(
     options,
     workspace,
     firstPath,
+    expectedDirectoryNames,
     capture,
   );
   return {
     firstPath,
     secondPath,
+    openToolbar: {
+      discovery: targets.discovery,
+      primaryTargetId: targets.primary?.id ?? null,
+      menuTargetIds: expectedIds,
+      primaryAccessibleLabel: primaryLabel,
+      fixedActionOrder: ["open-in-folder", "save-as"],
+      nativeApplicationLaunched: false,
+      saveDialogExecuted: false,
+    },
     geometry,
     localizedSearch: true,
     undoRedoAfterSaveAndTabSwitch: true,
@@ -408,6 +458,7 @@ async function collectDirectoryViewportEvidence(
   options,
   workspace,
   firstPath,
+  existingNames,
   capture,
 ) {
   const prefix = "zz-virtual-" + crypto.randomUUID();
@@ -415,6 +466,7 @@ async function collectDirectoryViewportEvidence(
     { length: 200 },
     (_, index) => `${prefix}-${String(index).padStart(3, "0")}.ts`,
   );
+  const totalEntries = existingNames.length + names.length;
   for (const name of names)
     fs.writeFileSync(path.join(workspace.rootPath, name), "export {};\n", {
       flag: "wx",
@@ -433,7 +485,7 @@ async function collectDirectoryViewportEvidence(
       document
         .querySelector('[data-file-breadcrumb-directory] [role="treeitem"]')
         ?.getAttribute("aria-setsize") === String(expected),
-    203,
+    totalEntries,
     { timeout: options.timeoutMs },
   );
   const mountedBefore = await menu.getByRole("treeitem").count();
@@ -459,14 +511,14 @@ async function collectDirectoryViewportEvidence(
     names.at(-1),
     { timeout: options.timeoutMs },
   );
-  assert.equal(await last.getAttribute("aria-posinset"), "203");
+  assert.equal(await last.getAttribute("aria-posinset"), String(totalEntries));
   assert.equal(await last.getAttribute("tabindex"), "0");
   assert.equal(await originalFocus.evaluate((node) => node.isConnected), false);
   await capture("file-directory-virtualized");
   await page.keyboard.press("Home");
   await page.waitForFunction(
     (name) => document.activeElement?.getAttribute("aria-label") === name,
-    path.basename(firstPath),
+    existingNames[0],
     { timeout: options.timeoutMs },
   );
   assert.equal(
@@ -479,7 +531,7 @@ async function collectDirectoryViewportEvidence(
   await menu.waitFor({ state: "hidden", timeout: options.timeoutMs });
   await originalFocus.dispose();
   return {
-    totalEntries: 203,
+    totalEntries,
     mountedBefore,
     mountedAfter,
     parkedFocusPreserved: true,

@@ -2,6 +2,7 @@
   "$defs": {
     "HookEventName": {
       "enum": [
+        "interrupt",
         "permissionRequest",
         "postCompact",
         "postToolUse",
@@ -27,6 +28,7 @@
       "enum": [
         "agent",
         "command",
+        "mcpTool",
         "prompt"
       ],
       "type": "string"

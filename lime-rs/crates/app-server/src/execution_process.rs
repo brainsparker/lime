@@ -253,6 +253,21 @@ impl ExecutionProcessServer {
                 working_directory.display()
             )));
         }
+        if let Some(policy) = request
+            .attempt
+            .as_ref()
+            .and_then(|a| a.internal_agent_policy())
+        {
+            if matches!(
+                policy.sandbox(),
+                app_server_protocol::protocol::v2::SandboxPolicy::WorkspaceWrite { .. }
+            ) && !working_directory.starts_with(policy.root())
+            {
+                return Err(ExecutionProcessError::WorkingDirectory(
+                    "memory command cwd is outside its workspace".to_string(),
+                ));
+            }
+        }
         let canonical_tool_name = canonical_shell_tool_name(&request.tool_name)
             .ok_or(ExecutionProcessError::UnsupportedTool)?;
         let sandbox = match request.attempt.as_ref() {
@@ -813,6 +828,31 @@ fn orchestrated_sandbox(
     attempt: &RuntimeToolExecutionAttempt,
     runtime_metadata: Option<&serde_json::Value>,
 ) -> Result<Option<LocalExecutionSandbox>, ExecutionProcessError> {
+    if let Some(policy) = attempt.internal_agent_policy() {
+        use app_server_protocol::protocol::v2::SandboxPolicy;
+        if matches!(
+            policy.sandbox(),
+            SandboxPolicy::DangerFullAccess | SandboxPolicy::ExternalSandbox { .. }
+        ) {
+            return Ok(None);
+        }
+        let backend = match std::env::consts::OS {
+            "macos" => tool_runtime::sandbox::SandboxBackend::Seatbelt,
+            "linux" => tool_runtime::sandbox::SandboxBackend::LinuxSandbox,
+            "windows" => tool_runtime::sandbox::SandboxBackend::RestrictedToken,
+            _ => {
+                return Err(ExecutionProcessError::Sandbox(
+                    "memory sandbox unavailable".to_string(),
+                ))
+            }
+        };
+        return Ok(Some(LocalExecutionSandbox {
+            backend,
+            policy: policy.sandbox().clone(),
+            granted_permissions: None,
+            windows_mode: None,
+        }));
+    }
     let effective_policy = attempt.effective_sandbox_policy();
     if matches!(
         effective_policy,
@@ -853,8 +893,11 @@ fn orchestrated_sandbox(
     }
     Ok(Some(LocalExecutionSandbox {
         backend: plan.backend,
-        policy: tool_runtime::sandbox::sandbox_policy_from_label(effective_policy.label())
-            .map_err(|error| ExecutionProcessError::Sandbox(error.to_string()))?,
+        policy: match attempt.internal_agent_policy() {
+            Some(policy) => policy.sandbox().clone(),
+            None => tool_runtime::sandbox::sandbox_policy_from_label(effective_policy.label())
+                .map_err(|error| ExecutionProcessError::Sandbox(error.to_string()))?,
+        },
         granted_permissions: Some(attempt.granted_permissions().clone()),
         windows_mode: plan.config.windows_mode,
     }))

@@ -289,6 +289,33 @@ pub(super) fn copy_canonical_input_media_for_fork(
     Ok(())
 }
 
+/// 将 canonical sidecar 图片内联为 data URL，供 portable rollout 和 ephemeral fork 使用。
+///
+/// Codex 的 ephemeral fork 没有 rollout/sidecar 路径，但仍需保留完整的 provider history。
+/// 只改调用者提供的快照，不修改 live projection，也不写目标 sidecar。
+pub(super) fn inline_canonical_input_media(
+    input: &mut [AgentInput],
+    sidecar_store: Option<&SidecarStore>,
+    source_session_id: &str,
+) -> Result<(), String> {
+    for part in input {
+        let AgentInput::Image { uri, detail } = part else {
+            continue;
+        };
+        if !uri.starts_with(INPUT_MEDIA_URI_PREFIX) {
+            continue;
+        }
+        let source_uri = uri.clone();
+        let image =
+            hydrate_persisted_image(&source_uri, *detail, sidecar_store, source_session_id)?;
+        let provider_data = image
+            .provider_data
+            .ok_or_else(|| format!("canonical provider image has no inline data: {source_uri}"))?;
+        *uri = provider_data;
+    }
+    Ok(())
+}
+
 fn copy_canonical_input_media(
     uri: &str,
     sidecar_store: Option<&SidecarStore>,

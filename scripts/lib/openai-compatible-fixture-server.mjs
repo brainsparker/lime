@@ -425,6 +425,42 @@ function sendStreamingResponsesCustomToolCall(response, { scripted }) {
   response.end();
 }
 
+function sendStreamingResponsesFunctionCall(response, { scripted }) {
+  const callId = scripted.id || `function-call-fixture-${Date.now()}`;
+  const name = scriptedToolName(scripted);
+  const argumentsText = JSON.stringify(scripted.arguments ?? {});
+  response.writeHead(200, {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-cache",
+    connection: "keep-alive",
+  });
+  writeSse(response, {
+    type: "response.output_item.added",
+    item: { type: "function_call", call_id: callId, name, arguments: "" },
+  });
+  writeSse(response, {
+    type: "response.function_call_arguments.delta",
+    call_id: callId,
+    name,
+    delta: argumentsText,
+  });
+  writeSse(response, {
+    type: "response.function_call_arguments.done",
+    call_id: callId,
+    name,
+    arguments: argumentsText,
+  });
+  writeSse(response, {
+    type: "response.completed",
+    response: {
+      id: `resp-fixture-${Date.now()}`,
+      output: [],
+      usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+    },
+  });
+  response.end();
+}
+
 function sendScriptedResponses(response, { scripted, body }) {
   if (!scripted || typeof scripted !== "object") {
     return false;
@@ -432,6 +468,11 @@ function sendScriptedResponses(response, { scripted, body }) {
   if (scripted.type === "custom_tool_call") {
     ensureScriptedToolAvailable(scripted, body);
     sendStreamingResponsesCustomToolCall(response, { scripted });
+    return true;
+  }
+  if (scripted.type === "tool_call") {
+    ensureScriptedToolAvailable(scripted, body);
+    sendStreamingResponsesFunctionCall(response, { scripted });
     return true;
   }
   if (scripted.type === "text" || typeof scripted.content === "string") {

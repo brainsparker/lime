@@ -6,7 +6,8 @@ import {
   type SetStateAction,
 } from "react";
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
-import type { AgentThreadItem } from "@/lib/api/agentProtocol";
+import type { AgentThreadItem, AgentThreadTurn } from "@/lib/api/agentProtocol";
+import { useThreadOutputs } from "./right-surface/useThreadOutputs";
 import type { ReviewThreadSidePanelTarget } from "./ReviewThreadSidePanelTab";
 import type { WorkspaceArticleWorkspace } from "./workspaceArticleWorkspaceModel";
 import { useWorkspaceRightSurfaceActionRuntime } from "./useWorkspaceRightSurfaceActionRuntime";
@@ -49,6 +50,7 @@ interface UseWorkspaceRightSurfaceCoordinatorRuntimeParams {
   suppressHomeNavbarUtilityActions: boolean;
   taskCenterHomeHotpathActive: boolean;
   threadItems: readonly AgentThreadItem[];
+  threadTurns?: readonly AgentThreadTurn[];
   setExpertInfoPanelCollapsed: (value: boolean) => void;
   setHarnessPanelVisible: (value: boolean) => void;
   setLayoutMode: Dispatch<SetStateAction<LayoutMode>>;
@@ -79,6 +81,7 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
   suppressHomeNavbarUtilityActions,
   taskCenterHomeHotpathActive,
   threadItems,
+  threadTurns = [],
   setExpertInfoPanelCollapsed,
   setHarnessPanelVisible,
   setLayoutMode,
@@ -87,6 +90,20 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
   const effectiveSceneThreadId = resolveWorkspacePluginSurfaceThreadId(
     sceneThreadId,
     threadItems,
+  );
+  const outputs = useThreadOutputs(
+    {
+      threadId: effectiveSceneThreadId,
+      turns: threadTurns,
+      items: threadItems,
+      cwd: canvasWorkbenchRootPath,
+    },
+    localState.sidePanelTabs.open &&
+      localState.sidePanelTabs.tabs.some(
+        (tab) =>
+          tab.tabId === localState.sidePanelTabs.activeTabId &&
+          tab.kind === "workspace-new-tab",
+      ),
   );
   const pluginSurfaceSessionEpochRef =
     useRef<WorkspacePluginSurfaceSessionEpoch | null>(null);
@@ -241,6 +258,14 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
   return {
     ...derivedRuntime,
     ...actionRuntime,
+    outputs,
+    handleBrowserLaunchApplied: (requestId: string) => {
+      localState.setActiveBrowserRightSurfaceIntent((current) =>
+        current?.sourceRequestId === requestId && !current.launchApplied
+          ? { ...current, launchApplied: true }
+          : current,
+      );
+    },
     sidePanelTabs: localState.sidePanelTabs,
     getFileDraft: localState.getFileDraft,
     setFileDraft: localState.setFileDraft,

@@ -674,18 +674,6 @@ describe("i18n namespace loader", () => {
         "skills.scaffoldDialog.validation.directory",
       );
       expect(resources[locale].agent).toHaveProperty(
-        "agentChat.sessionOverview.panel.title",
-      );
-      expect(resources[locale].agent).toHaveProperty(
-        "agentChat.sessionOverview.status.turn.running",
-      );
-      expect(resources[locale].agent).toHaveProperty(
-        "agentChat.sessionOverview.timeline.empty",
-      );
-      expect(resources[locale].agent).toHaveProperty(
-        "agentChat.sessionOverview.metrics.inProgress",
-      );
-      expect(resources[locale].agent).toHaveProperty(
         "agentChat.imageWorkbenchPreview.media.alt",
       );
       expect(resources[locale].agent).toHaveProperty(

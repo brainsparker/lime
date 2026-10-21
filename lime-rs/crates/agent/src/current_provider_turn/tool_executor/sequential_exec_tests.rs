@@ -1,4 +1,7 @@
 use super::*;
+use agent_runtime::session_loop::{
+    RuntimeSessionClosureTask, RuntimeSessionRegistry, RuntimeSessionTaskOutcome,
+};
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -112,6 +115,7 @@ impl RuntimeLiveExecutionGateway for SequentialExecGateway {
 fn executor(state: AgentRuntimeState) -> CurrentTurnToolExecutor {
     let (event_sender, _event_receiver) = tokio::sync::mpsc::unbounded_channel();
     CurrentTurnToolExecutor {
+        internal_agent_policy: None,
         state,
         policy: crate::request_tool_policy::resolve_request_tool_policy(None),
         event_sender,
@@ -196,4 +200,80 @@ async fn current_executor_starts_short_command_after_delayed_terminal_command() 
             "cat crates/oxvg_optimiser/src/utils/structural_selector.rs",
         ]
     );
+}
+
+#[tokio::test]
+async fn context_window_tools_report_budget_and_request_a_rollover() {
+    let registry = RuntimeSessionRegistry::default();
+    let session = registry
+        .get_or_create("session-context-tools", "thread-context-tools")
+        .await
+        .expect("bind context tools actor");
+    let task = RuntimeSessionClosureTask::new(
+        "turn-context-tools",
+        Vec::new(),
+        move |task_context, _input, _cancel| {
+            Box::pin(async move {
+                task_context.record_token_usage(7, 0, 0, 0).await;
+                let mut current = executor(AgentRuntimeState::new());
+                current.pending_input = Some(task_context.input_handle());
+                let turn_context = tool_runtime::tool_executor::RuntimeToolTurnContext {
+                    metadata: HashMap::from([(
+                        "lime_runtime".to_string(),
+                        serde_json::json!({
+                            "context_policy": {"model_context_window": 100}
+                        }),
+                    )]),
+                    ..Default::default()
+                };
+                let tool_context = context("context-tool-call");
+                let result = current
+                    .execute(RuntimeToolExecutionRequest {
+                        tool_name: mcp_step_snapshot::GET_CONTEXT_REMAINING_TOOL_NAME,
+                        params: &serde_json::json!({}),
+                        context: &tool_context,
+                        turn_context: Some(&turn_context),
+                    })
+                    .await
+                    .expect("remaining context tool");
+                assert_eq!(result.output, "{\"tokens_left\":93}");
+
+                current
+                    .execute(RuntimeToolExecutionRequest {
+                        tool_name: mcp_step_snapshot::NEW_CONTEXT_WINDOW_TOOL_NAME,
+                        params: &serde_json::json!({}),
+                        context: &tool_context,
+                        turn_context: Some(&turn_context),
+                    })
+                    .await
+                    .expect("new context tool");
+                assert!(task_context.context_rollover_requested().await);
+                assert_eq!(task_context.capture_step_context().await.context_epoch, 1);
+                task_context.record_token_usage(5, 0, 0, 0).await;
+                let reset = current
+                    .execute(RuntimeToolExecutionRequest {
+                        tool_name: mcp_step_snapshot::GET_CONTEXT_REMAINING_TOOL_NAME,
+                        params: &serde_json::json!({}),
+                        context: &tool_context,
+                        turn_context: Some(&turn_context),
+                    })
+                    .await
+                    .expect("remaining context after rollover");
+                assert_eq!(reset.output, "{\"tokens_left\":95}");
+                Ok(())
+            })
+        },
+    );
+    let submission = session
+        .submit(Arc::new(task), false)
+        .await
+        .expect("submit context tools task");
+    assert_eq!(
+        submission.completion.await.expect("task completion"),
+        Ok(RuntimeSessionTaskOutcome::Completed)
+    );
+    registry
+        .shutdown("session-context-tools")
+        .await
+        .expect("shutdown");
 }

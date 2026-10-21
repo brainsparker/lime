@@ -28,9 +28,11 @@ vi.mock("@/lib/oemCloudLoginLauncher", () => ({
 vi.mock("sonner", () => ({ toast: { error: mocks.error, success: vi.fn() } }));
 
 let root: Root;
+let previousI18nLanguage: string;
 beforeEach(async () => {
   vi.clearAllMocks();
   mocks.openExternal.mockResolvedValue(undefined);
+  previousI18nLanguage = getLimeI18n().language;
   await changeLimeLocale("zh-CN");
   const container = document.createElement("div");
   document.body.append(container);
@@ -45,6 +47,7 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await act(async () => root.unmount());
+  await changeLimeLocale(previousI18nLanguage);
   vi.restoreAllMocks();
   document.body.innerHTML = "";
 });

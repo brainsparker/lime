@@ -136,11 +136,31 @@ fn validate_hook_snapshots(hooks: &[RuntimeHookSnapshot]) -> Result<(), RuntimeT
         if hook.key.trim().is_empty() {
             return Err(RuntimeTurnSnapshotError::EmptyHookKey);
         }
-        if hook.handler_type != RuntimeHookHandlerType::Command {
-            return Err(RuntimeTurnSnapshotError::UnsupportedHookHandlerType {
-                key: hook.key.clone(),
-                handler_type: hook.handler_type,
-            });
+        match hook.handler_type {
+            RuntimeHookHandlerType::Command => {
+                if hook.command.as_deref().is_none_or(str::is_empty) {
+                    return Err(RuntimeTurnSnapshotError::UnsupportedHookHandlerType {
+                        key: hook.key.clone(),
+                        handler_type: hook.handler_type,
+                    });
+                }
+            }
+            RuntimeHookHandlerType::McpTool => {
+                if hook.mcp_server.as_deref().is_none_or(str::is_empty)
+                    || hook.mcp_tool.as_deref().is_none_or(str::is_empty)
+                {
+                    return Err(RuntimeTurnSnapshotError::UnsupportedHookHandlerType {
+                        key: hook.key.clone(),
+                        handler_type: hook.handler_type,
+                    });
+                }
+            }
+            RuntimeHookHandlerType::Prompt | RuntimeHookHandlerType::Agent => {
+                return Err(RuntimeTurnSnapshotError::UnsupportedHookHandlerType {
+                    key: hook.key.clone(),
+                    handler_type: hook.handler_type,
+                });
+            }
         }
         if !hook.source_path.is_absolute() {
             return Err(RuntimeTurnSnapshotError::RelativeHookSourcePath(
@@ -195,6 +215,9 @@ mod tests {
             execution_mode: RuntimeHookExecutionMode::Sync,
             matcher: Some("*".to_string()),
             command: Some("true".to_string()),
+            mcp_server: None,
+            mcp_tool: None,
+            mcp_input: None,
             timeout_sec: 30,
             status_message: None,
             additional_context_limit: None,

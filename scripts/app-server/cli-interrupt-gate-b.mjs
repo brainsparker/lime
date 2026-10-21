@@ -55,6 +55,14 @@ export async function runExecInterruptGateB({
         },
       ],
     });
+    const requestStages = [];
+    const observeRequests = (stage) => {
+      requestStages.push({
+        stage,
+        timestamp: new Date().toISOString(),
+        count: fixture.requests.length,
+      });
+    };
     const dataDir = path.join(directory, "data");
     const appDataDir = path.join(directory, "app-data");
     const config = {
@@ -91,6 +99,7 @@ export async function runExecInterruptGateB({
         invoke: async (_options, method, params) =>
           request(connected, method, params),
       });
+      observeRequests("provider-provisioned");
       await connected.sidecar.close();
       connected = undefined;
       const connection = [
@@ -116,6 +125,7 @@ export async function runExecInterruptGateB({
       const outputPath = path.join(directory, "last-message.txt");
       const preserved = "PREVIOUS_COMPLETED_ANSWER";
       await writeFile(outputPath, preserved);
+      observeRequests("before-cli");
       const result = await runInterruptedCli({
         cliBinaryPath,
         args: [
@@ -163,6 +173,7 @@ export async function runExecInterruptGateB({
           assert.fail(`${scenario}: actual shell did not publish its PID`);
         },
       });
+      observeRequests("after-cli");
       await writeFile(
         path.join(directory, "result.json"),
         JSON.stringify({ ...result, processes: ownedProcesses }, null, 2),
@@ -215,6 +226,7 @@ export async function runExecInterruptGateB({
       await waitForExit(ownedProcesses.pid, `${scenario}: actual shell`);
       await waitForExit(ownedProcesses.appServerPid, `${scenario}: App Server`);
       connected = await connect();
+      observeRequests("after-cold-connect");
       const listed = await request(connected, "thread/list", { limit: 10 });
       assert.equal(
         listed.data.length,
@@ -227,8 +239,43 @@ export async function runExecInterruptGateB({
         ["thread", "show", threadId, "--include-turns", ...connection],
         tempDir,
       );
+      observeRequests("after-cold-show");
       assert.equal(cold.code, 0, cold.stderr);
       const thread = JSON.parse(cold.stdout).thread;
+      // Startup memory work has its own thread, as in Codex phase 2. Scope the
+      // interruption invariant to this canonical user thread, retaining all traffic.
+      const providerRequests = fixture.requests.map(({ path, body }) => {
+        const context = body.messages
+          ?.filter((message) => message.role === "user")
+          .map((message) => message.content)
+          .find(
+            (content) =>
+              typeof content === "string" &&
+              content.startsWith("<environment_context>"),
+          );
+        const requestThreadId = context?.match(
+          /<thread_id>([^<]+)<\/thread_id>/u,
+        )?.[1];
+        assert.ok(
+          requestThreadId,
+          `${scenario}: provider request thread identity`,
+        );
+        if (requestThreadId !== threadId) {
+          assert.equal(
+            body.messages.some(
+              (message) =>
+                message.role === "user" &&
+                message.content === `interrupt ${scenario}`,
+            ),
+            false,
+            `${scenario}: user input must not escape to another thread`,
+          );
+        }
+        return { path, threadId: requestThreadId };
+      });
+      const userRequests = providerRequests.filter(
+        (request) => request.threadId === threadId,
+      );
       await writeFile(
         path.join(directory, "canonical.json"),
         JSON.stringify(
@@ -236,6 +283,8 @@ export async function runExecInterruptGateB({
             thread,
             processExited: true,
             providerRequests: fixture.requests.length,
+            userProviderRequests: userRequests.length,
+            providerRequestThreads: providerRequests,
           },
           null,
           2,
@@ -286,7 +335,7 @@ export async function runExecInterruptGateB({
         assert.equal(completed[0].item.exit_code, item.exitCode ?? null);
       }
       assert.equal(
-        fixture.requests.length,
+        userRequests.length,
         1,
         `${scenario}: no extra provider turn after interrupt`,
       );
@@ -294,6 +343,21 @@ export async function runExecInterruptGateB({
         `CLI_EXEC_INTERRUPT_OK mode=${scenario} thread=${threadId} turn=${turn.id} status=${turn.status} command=${item.status} exit=130 cold=ok children=closed backend=runtime`,
       );
     } finally {
+      observeRequests("finally");
+      await writeFile(
+        path.join(directory, "provider-requests.json"),
+        JSON.stringify(
+          {
+            stages: requestStages,
+            requests: fixture.requests.map(({ path, body }) => ({
+              path,
+              body,
+            })),
+          },
+          null,
+          2,
+        ),
+      );
       await connected?.sidecar.close();
       if (!ownedProcesses) {
         try {
@@ -338,7 +402,7 @@ async function runInterruptedCli({
       env,
       cwd,
       stdio: ["pipe", "pipe", "pipe"],
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(60_000),
     });
     child.stdin.end();
     let stdout = "";

@@ -7,8 +7,8 @@
 - 已验收：精确 snapshot / extraction ownership **39/39**；共享 ephemeral 核心合同 **4/4（100%，仅此前提）**；真实 stdio provider/model/key 切换保留工具历史。
 - 沙箱执行前提已验证：完整 typed `SandboxPolicy` -> 现有 OS runner，执行合同 **4/4**；client **139/139**、protocol **145/145**、command_exec **16/16**、sandbox **13/13**、进程回归 **52/52**、真实 stdio/PTY **2/2** 与 contracts 通过。新产物共享 runtime 回归和 GUI smoke **24/24** 通过；完整默认门禁仍未通过。
 - 已修复门禁问题：Windows evidence CLI 的纯参数入口提前加载 Playwright，改为实际 CDP 连接前加载；原断言/超时下相关 **39/39** 通过。
-- 默认门禁：独立续跑已通过批次 29..37；最新第 38 批协议生成器三项超过原 5000ms，完整门禁未通过；原样单跑 **6/6** 不替代聚合结果。
-- 下一刀：同一 RuntimeCore 的可信 typed Memory admission、snapshot/executor 扩展隔离、workspace artifact/baseline、真实终态/shutdown 后精确提交；删除 phase-2 direct sampling。上述 Agent 接线尚未实施，M01 继续 active。
+- 默认门禁：历史续跑停在第 46/142 批 PPTX Worker 失败，Node25 定向仍有原 5000ms 超时；完整门禁未通过，不扩大修改无关 PPTX owner。
+- 当前实施：同一 RuntimeCore 的可信 typed Memory admission、snapshot/executor 隔离、原生 patch OS helper、workspace artifact/baseline 与关闭后精确提交已写入生产代码；phase-2 direct sampling/proposal 已删除。最新生产源码与新增回归正在编译验证，尚未验收；M01 继续 active。
 
 ## 主目标与来源
 
@@ -20,9 +20,9 @@
 2. 同文件 `agent::get_config`：ephemeral、关闭 memory generation/use/notify/apps instructions，MCP 空、approval never，关闭 collab/memory tool/apps/plugins/skill dependency install；managed sandbox 仅写 memory root 且禁网，父级显式 Disabled/External policy 按源码保留。
 3. `memories/write/src/runtime.rs::spawn_consolidation_agent`：经现役 thread manager 建 thread，typed `SessionSource::Internal(MemoryConsolidation)` 与 `ThreadSource::MemoryConsolidation`，start_turn_if_idle；不是另建 Memory provider loop。
 4. `phase2.rs::agent::handle`：等待真实 agent 终态，shutdown 后校验 artifacts，再确认 lease ownership 和 workspace baseline，最后提交 selected-output watermark。shutdown 失败保留 lease，不释放给下一个 worker。
-5. Codex `core/src/session/turn.rs` 的 managed Stop block/stop 都拒绝无人值守 Memory 续跑；Lime 已有 typed target 与该错误分支回归，生产 Memory 接线尚未承接。
+5. Codex `core/src/session/turn.rs` 的 managed Stop block/stop 都拒绝无人值守 Memory 续跑；Lime 已有 typed target 与该错误分支回归，现已接入内部 Memory admission，真实全链仍待验收。
 
-Lime current：`RuntimeCore::spawn_memory_stage1_startup` 已在 eligible root thread start 自动触发 phase1→phase2。`run_memory_stage2_for_session` 通过现有 backend route admission 选模型，`memory_store/consolidation.rs` 的 `MemoryStageTwoProvider::sample` 最终复用 `sample_memory_stage` → `run_direct_text_generation_with_db`。本轮 bounded search 中 `memory_consolidation` 仅有 session-source 识别，没有 Memory agent spawn 生产接线。strict JSON artifact/lease 不是完整 Agent harness；旧记录中的“provider consolidation”只表示已实现直接抽样，不能标记 M01 完成。
+Lime current：`RuntimeCore::spawn_memory_stage1_startup` 在 eligible root thread start 自动触发 phase1→phase2。phase1 保留 structured extraction，phase2 的 `MemoryAgent` 由同一 RuntimeCore 实现，经内部 session、原 session actor、正常 RuntimeBackend 和工具 continuation 执行。可信 policy 不接受 wire/metadata 自授权；旧 `MemoryStageTwoProvider` 与 proposal parser 已删除。旧记录中的“provider consolidation”仅表示当时的直接抽样；本轮实现必须取得新产物与新源码的证据后才能验收。
 
 ## 分步写集与退出条件
 
@@ -186,3 +186,65 @@ Memory hook 接线还需区分插件 hook 与用户配置的全局 hook：Codex 
 Node 25 定向终态 **10 passed / 4 failed、exit 1**：builtin **8/8**，format **2/6**，后者四项超过原 5000ms；缺失 `registerHooks` 的报错已不再出现，但不能据此宣称整个运行环境问题已解决。原日志 `sandbox-node25-presentation-fixtures.log` 保留，本轮没有再扩大到无关 PPTX 实现或修改其测试预算。完整门禁仍停在第 46/142 批；所有本轮启动的测试与 GUI 命令均已取得终态。
 
 本片收尾：`current` 为 typed wire、完整 policy 与现有 OS runner；无新增 compat/deprecated；已删除丢字段 policy label lowering、任意 JSON/string command policy、无条件 `/var/tmp` 和 read-only 临时写权限。test-only 为两处沙箱夹具修正及 Provider 文档语言保存/恢复。root 本次只追加 Provider 测试四行、主计划和本目录证据；既有沙箱源码与并行提交保持不变，32 个冻结摘要均匹配。避让 `.gitignore`、发布计划、async-user-input、GUI/Artifact 及其它并行写集。本片执行合同 **4/4**；M01 和整体对齐继续 active，下一刀仍归共享 RuntimeCore / tool-runtime / memory_store 的受限 Memory Agent，不由默认门禁的无关失败替代主线。
+
+### 2026-10-20：完整 phase-2 实施（active）
+
+按用户“复刻 Codex 的实现，完整实现”继续生产接线。窄写集为 memory_store/consolidation/workspace、RuntimeCore 内部 admission/shutdown、ExecutionRequest、Agent session config 和工具 snapshot/executor，以及 tool-runtime 的 native filesystem helper/typed attempt；对应测试与本计划/architecture 同步。避让 GUI、发布和 async-user-input 脏写集。
+
+直接源码合同：memories/write/phase2.rs::agent::{get_config,handle,loop_agent}，workspace.rs 的准备/diff/validation/reset，core/tools 和 exec-server 的 OS filesystem helper。完成次序是共享内部 Agent → 真实终态 → shutdown(10s) → artifacts validation → ownership heartbeat → baseline reset → exact selection/watermark。shutdown 失败不释放租约。phase1 采样保留，phase2 direct sampling 与 JSON proposal 删除。保留本地 Skills、AGENTS 和全局 hooks；隔离插件 hooks、MCP、Apps、递归 Agent 与依赖安装。多模型路径继续使用原 route/readiness/provider owner。
+
+退出条件：可信 typed policy 在 snapshot 和实际 executor 同时生效；managed cwd/workspace root 唯一 Memory root、禁网/临时根排除；native patch add/update/delete/move 经过同一 OS runner；取消/lease loss/Stop block/abort/shutdown failure/无效产物不提交；exact source version 与 baseline 回归；真实共享 runtime 工具 continuation。未满足前保持 active，不以旧前提验证百分比代替交付。
+
+实现结构：新增业务放 memory_store/workspace、runtime/memory_agent 和 tool-runtime/filesystem_helper；mcp_step_snapshot 的原内嵌测试整体迁到同名 tests 模块，生产 owner 回到 800 行以内。超长 turn_execution/execution_process/memory_store 仅作可信 capability 和既有合同接线，不在其中继续扩展新的 harness；本片退出条件是所有新增编排、helper、workspace 行为留在独立领域模块并通过定向及真实边界验证。旧 stage-two proposal review/identity-check helper 与只验证该旧行为的测试删除，精确版本提交回归保留并扩大到 Agent 执行期间新提取版本的场景。
+
+### 续接验证：v2 workspace 与真实 harness（进行中）
+
+直接复核 `memories/write/src/workspace.rs::validate_consolidation_artifacts_for_version` 后修正：v2 只要求合法 `memory_summary.md`，不强制或重建 v1 的 `MEMORY.md`。列表、health、reset 的旧正向夹具同步更新；新增 summary-only 连续两次整合、不重复采样、来源删除和空 selection 回归。diff 现在包含新增提取文件的内容；失败且关闭完成后清理符号链接，Windows 使用 symlink directory 的 file-type 信息处理 dangling directory link，避免追随目标判断。
+
+新增 `scripts/app-server/memory-agent-fixture.mjs`，使用隔离 stdio App Server、真实 RuntimeBackend 和 loopback provider。phase1 返回严格 JSON；phase2 返回 shell → 原生 patch → final，检查同一 canonical Thread/Turn metadata、公开 ephemeral metadata、AGENTS、工具面、关闭、数据库 selection/watermark 与无内部历史落盘。另有隔离用户 Hook 配置的 block/abort 模式，使用公开 `hooks/list` 的 key/hash 显式信任 fixture hook；不会修改真实用户配置。内部回合走静默同步 sink，不为测试添加面向用户的 completion notification。该 fixture 尚未执行，不能记为通过。
+
+首轮单测编译失败于新增夹具的 `AbsolutePathBuf.as_path` 和 `NetworkAccess::Disabled`，已按真实类型改为 `AsRef<Path>` / `Restricted`；原错误日志保留。修正轮仍在编译，此间新增的生产/回归改动必须再以最终源码执行。未清共享 target，未停止外部构建或改测试断言/预算。
+
+`governance:scripts` exit 0。`test:contracts` 首轮遇到旧 Memory 委托字符串及并行 GUI fixture 两项旧 `openWorkbench/workbenchOpened` 断言；只迁移本任务 Memory 委托守卫，后续 client guard 仍因后两项 exit 1。其余 command、harness、modality、release、Desktop reference、CLI、cleanup、docs 边界八项全部 exit 0，见 `memory-agent-contracts-remainder.log`；这不是聚合 contracts 通过。避让 GUI owner 与其业务测试，没有删除阻塞断言。
+
+源码冻结 `memory-agent-source-freeze.json` 是直接源码证据，后续最终摘要需重算，不当运行证据。workspace baseline 当前复用 git 可执行程序，Codex 使用 gix；本机 Git 命令、Linux/Windows 与打包后 Git 可用性仍待验证，不把相同产物结构写成逐实现完全相同。
+
+baseline 实现细节补查：Codex `git-utils/src/baseline.rs` 用 gix 写对象和单提交，但 `write_index_from_head` 仍调用 `run_git_for_status(..., ["read-tree", "--reset", "HEAD"])`；不能把它描述成完全不依赖 Git 可执行程序。本实现复用现有 Git 进程，尚须用最终产物验证新增/修改/删除内容、单 baseline 和清理历史；Linux/Windows/打包环境的可用性仍单独开放。
+
+### 取消与关闭的补充修正（验证中）
+
+直接读取 Codex `core/src/tasks/mod.rs::handle_task_abort`，确认上游也先给 100ms graceful cancellation，再 abort task。Lime 的既有 actor 合同相同，因此 native filesystem 不能只依赖调用 future 的 Drop 发送 terminate。现有 LocalExecutionProcessHandle::wait 原先在等待前取走 oneshot；被 select 取消后无法再次等待真实退出，已改为借用 receiver、收到终态后再取走。新增真实子进程回归通过 stdin 唤醒，检查取消等待后可继续等待且完整输出保留。
+
+可信 InternalAgentPolicy 现在持有原生文件工具的 TaskTracker 与关闭 token；helper 使用同一个现有 OS process supervisor，会话 actor 退出后由同一 shutdown_session_runtime 取消并等待这些任务。调用 future 丢弃会取消 helper，owned helper 继续 terminate + wait；关闭未完成继续受外层 10s timeout 与保留 lease 约束。没有创建第二套进程执行器或业务 runtime。另补 shutdown 必须等原生写任务 drain 的确定性回归。stage2_candidates 仅供测试，标记 cfg(test)，生产不保留 dead helper。
+
+86/86 单测来自上述补充之前的源码，仅保留其覆盖范围。本轮旧 filesystem/stdio integration 编译任务（本轮 Cargo PID 62217 / rustc 80592）因源码已变化而终止，exit 1；未执行测试、不计通过。未清 target 或停止外部任务。修正后的定向单测、Memory 单测和真实 filesystem/stdio 已重新排队，只有最终源码产物可用于后续 fixture。
+
+### 2026-10-21：真实边界发现与单次采样修正
+
+取消/drain 修正后的 Memory 定向回归 **87/87、exit 0**（agent-runtime 1、app-server 72、lime-agent 6、tool-runtime 8），含 shutdown 等待原生写任务回归；进程取消后重新 wait 的真实子进程回归此前 **1/1**。这轮早于后述 phase1 修正，不当作其最终通过证据。
+
+原生 filesystem/stdio 首轮 stdio/PTY **2/2**，filesystem **2 passed / 1 failed**；失败根因是 Seatbelt 清除 DYLD 环境后 App Server helper 缺内建 rpath，无法加载同目录动态库。此前负向两项也可能因 loader 失败误过，因此明确不能接受为权限证明。App Server build.rs 现于 macOS 链接时写入 `@executable_path`；现有打包 owner 本就将 dylib 放在 sidecar 同目录。拒绝断言强化为真正 Permission denied/Operation not permitted，禁止启动失败算沙箱成功。修复后 integration 正在重新构建。
+
+真实 loopback 请求诊断确认 phase1 意外携带 11 个本地工具。Codex `memories/write/src/phase1.rs::job::sample` 使用空 tools 的 Prompt、strict output_schema 与单次 stream，而 Lime 旧 direct_text_generation 委托完整 Agent reply loop；RequestToolPolicyMode::Disabled 只关闭 web tools，无法提供此隔离。窄写集扩至 direct_text_generation 及独立 tests、request_tool_policy 的两个无用配置包装；复用 agent-runtime/provider_turn 的 generation controls 和既有 model-provider client，不建立第二 provider/router。保留原 credential/readiness/model policy、identity 与 strict schema；不执行工具、不跑 hooks/Agent loop、不读写会话 usage 作为采样结果。仅明确 Stop 且无需 follow-up 的 Finish 成功，工具事件、错误/截断/过滤/EOF 返回失败。新增请求捕获合同、终态/usage、意外工具/截断/EOF/transport 回归，真实 phase1 fixture 保留零工具并新增 strict schema 断言。
+
+fixture 曾误用 Chat 的不存在 canonical metadata、错误 public providerType；现使用公开 `openai-response` 配置和真实 Responses `client_metadata` 验证身份，原失败证据保留，不修改 Chat wire 迎合测试。Responses 只证明该协议，普通 Chat 继续由共享 ephemeral fixture 验证，四协议矩阵仍开放。生产代码和测试最终冻结、最终 binary 与 allow/block/abort 验收尚在进行。
+
+
+成功路径复核另发现 `MemoryAgent::run` 的 drop guard 直接持有上层 heartbeat-lost token；正常返回也会 cancel，令关闭后 ownership 检查误报 lease 丢失。现改用 child_token：父 lease loss 仍传播到 Agent，caller future Drop 只取消内部子任务，正常完成不改变父 token。既有同核/actor 成功回归增加父 token 未取消断言，既有丢弃 future 关闭回归继续保留。该修正尚须新源码回归与真实提交 fixture，不以此前 87/87 核销。
+
+
+补查 Codex `memories/write/src/runtime.rs::stream_stage_one_prompt`：无 delta 时从完成 Message 取文本，已有 delta 时不重复拼接。单次采样同步复用 canonical ResponseItem/ContentItem 解析并补完成项/去重回归；没有新协议分支。最终 standalone sampler 回归共 6 项；Memory 最终轮另加入父 lease cancellation 传播回归，仍待编译终态。
+
+rpath 修正后的真实 integration **5/5、exit 0**（stdio/PTY 2、native filesystem 3），强化的权限错误断言与 root 内 add/update/move/delete 均通过。该产物仍早于单次采样和父 token 修正，只闭合本地 helper/进程边界；最终源码 integration、Memory 单测及真实 harness fixture继续运行。新 source-freeze 62 个 Lime 来源与 12 个 Codex 来源，只刷新已声明改动，没有吸收未知漂移。
+
+### 2026-10-21：真实 Memory harness 终态与 Stop hook 语义收口
+
+使用固定 App Server 产物 `5aa081fd9aa00fffbbaa993061392f980fd1d711bc463561765725e86390ce44` 重跑真实 stdio fixture：`allow`、`block`、`abort` 三种模式均 **1/1、exit 0**。三次都观察到 phase-1 单次严格零工具抽取、同一 RuntimeCore 内部 Thread/Turn、`exec_command` continuation、原生 `apply_patch`、ephemeral shutdown、exact selection/watermark 和无内部历史落盘。
+
+本轮追加的生产修复与证据：workspace `memory_summary.md` 缺失或为空时，`runtime/memory_prompt.rs` 回退到 global `memory_summary.md`，保留 workspace 优先级，避免普通 Turn 在工作区 Memory 尚未建立时丢失全局上下文；`memory_prompt` 定向回归 **6/6**，`memory_store` 定向回归 **40/40**。`session_data_source` 增加 Memory read 响应序列支持，真实 `memory-agent-fixture.mjs` 以两个独立 rollout source 验证 phase-1 多来源提取、phase-2 同一 RuntimeCore 内部 ephemeral Agent、真实工具 continuation、native `apply_patch`、普通 Turn citation、citation usage 持久化及下一轮 selection 将已引用 source 排首位；多次内部 Agent 的 ephemeral history 不落盘。`allow`、`block`、`abort` 三种 Stop hook 模式均观察到内部 Agent 正常完成、用户 Stop hook 被忽略且正常关闭；block/abort 只证明普通用户 hook 的过滤合同，managed/System hook 仍由 stop receipt 单测覆盖。
+
+这轮结果仍是本地受控 Responses provider 的真实 stdio 证据，不等于 live、四协议、Windows/Linux/packaged、CLI/TUI 或 GUI 完整验收。provider readiness 失败后的可观测 retry/recovery、disabled scope、thread delete/fork/cold reopen、四协议 capture 与 phase-2 selection 的跨进程冷启动持久化仍未核销；整体状态保持 **active / partial**。
+
+`block`/`abort` fixture 使用的是普通 User hook，结果按 Codex `core/src/hook_runtime.rs` 与 Lime `agent-runtime/src/provider_turn/stop_hooks.rs` 的同一过滤合同完成提交；它证明 User/Project hook 不会被 `MemoryConsolidation` 当作受管 Stop hook。managed/System hook 的 block/abort 失败语义继续由 `stop_receipt` 单测覆盖，不能用普通用户配置 fixture 冒充 managed hook 证据，也不能为通过 fixture 放宽生产过滤。
+
+本次只修正测试证据与执行计划，生产实现未为 fixture 增加分支。`memory-agent-source-freeze.json` 已刷新 fixture 摘要，`verification-summary.json` 已登记三次真实进程结果。当前 Memory harness 在本地受控 Responses provider 上完成实现验证；四协议、live、CLI/TUI、GUI fresh rebuild、Windows/Linux/packaged 与 LimeCore 端到端仍保持开放。

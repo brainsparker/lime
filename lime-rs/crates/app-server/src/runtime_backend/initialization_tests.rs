@@ -977,6 +977,7 @@ fn execution_request_for_tool_confirmation_bridge_test(
         command_publisher: None,
         rollout_budget_reminder_source: None,
         mid_turn_compaction_commit: None,
+        internal_agent_policy: None,
     }
 }
 

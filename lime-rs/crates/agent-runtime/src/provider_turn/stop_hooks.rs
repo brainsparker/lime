@@ -140,6 +140,7 @@ pub(super) async fn evaluate_stop_hooks(
         session_id: Some(session_config.id.clone()),
         turn_id: Some(turn_id.to_string()),
         working_directory: working_directory.to_path_buf(),
+        compact: None,
         stop: Some(RuntimeStopHookContext {
             invocation_id: format!("{turn_id}:stop"),
             model: session_config

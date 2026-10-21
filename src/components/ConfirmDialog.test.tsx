@@ -11,7 +11,7 @@ interface MountedDialog {
 
 const mountedDialogs: MountedDialog[] = [];
 
-function renderConfirmDialog() {
+function renderConfirmDialog(title?: string) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -20,6 +20,7 @@ function renderConfirmDialog() {
     root.render(
       <ConfirmDialog
         isOpen={true}
+        title={title}
         message="This cannot be undone."
         onCancel={() => {}}
         onConfirm={() => {}}
@@ -55,6 +56,31 @@ afterEach(async () => {
 });
 
 describe("ConfirmDialog", () => {
+  it("每个确认框的名称和说明关联自己的可见标题与正文", () => {
+    renderConfirmDialog("Replace current goal?");
+    renderConfirmDialog("Delete file?");
+
+    const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'));
+    expect(dialogs).toHaveLength(2);
+    for (const [index, dialog] of dialogs.entries()) {
+      const titleId = dialog.getAttribute("aria-labelledby");
+      const descriptionId = dialog.getAttribute("aria-describedby");
+      expect(titleId).toBeTruthy();
+      expect(descriptionId).toBeTruthy();
+      const title = document.getElementById(titleId!);
+      const description = document.getElementById(descriptionId!);
+      expect(dialog.contains(title)).toBe(true);
+      expect(dialog.contains(description)).toBe(true);
+      expect(title?.textContent).toBe(
+        index === 0 ? "Replace current goal?" : "Delete file?",
+      );
+      expect(description?.textContent).toBe("This cannot be undone.");
+    }
+    expect(dialogs[0].getAttribute("aria-labelledby")).not.toBe(
+      dialogs[1].getAttribute("aria-labelledby"),
+    );
+  });
+
   it("未传入显式文案时使用 common namespace 默认 chrome", () => {
     renderConfirmDialog();
 

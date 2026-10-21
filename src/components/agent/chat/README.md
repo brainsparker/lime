@@ -24,7 +24,7 @@ AI Agent 聊天页面，承接新建任务与生成两种入口。当前工作�
 | `Inputbar.tsx`                   | 输入栏组件                                                             |
 | `EmptyState.tsx`                 | 空状态引导（主题选择、模式选择）                                       |
 | `CanvasWorkbenchLayout.tsx`      | 画布顶部标签工作台，统一承载结果、文件与动态文件标签                   |
-| `CanvasSessionOverviewPanel.tsx` | 会话过程面板，展示 turn、skills / tools、A2UI 与排队状态的统一过程视图 |
+| `workspace/ThreadSummaryPanel.tsx` | Codex 对齐的 Summary、Sources、Subagents 与后台进程投影 |
 
 ### hooks/
 

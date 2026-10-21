@@ -17,6 +17,7 @@ import {
 } from "./right-surface/threadSidePanelTabs";
 import { openWorkspaceFile } from "./right-surface/openWorkspaceFile";
 import { openBackgroundTerminal } from "./right-surface/openBackgroundTerminal";
+import { useFileTreePanel } from "./useFileTreePanel";
 import type { AgentThreadItem } from "../types";
 import type { ThreadSidePanelTab } from "./right-surface/threadSidePanelTabs";
 import type { FileEditorDraft } from "./text-file-editor/FileEditorController";
@@ -126,6 +127,22 @@ export function useWorkspaceRightSurfaceLocalStateRuntime({
   const state = stateForOwner(stored, owner);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const emptyFileTab = state.sidePanelTabs.tabs.find(
+    (tab) => tab.kind === "files" && !tab.filePath,
+  );
+  const openedEmptyFileTab = useRef<ThreadSidePanelTab | null>(null);
+  const { disabled: fileTreeDisabled, setOpen: setFileTreeOpen } =
+    useFileTreePanel();
+
+  useEffect(() => {
+    if (!emptyFileTab) {
+      openedEmptyFileTab.current = null;
+      return;
+    }
+    if (fileTreeDisabled || openedEmptyFileTab.current === emptyFileTab) return;
+    openedEmptyFileTab.current = emptyFileTab;
+    void setFileTreeOpen(true);
+  }, [emptyFileTab, fileTreeDisabled, setFileTreeOpen]);
 
   useEffect(() => {
     setStored((current) => stateForOwner(current, owner));

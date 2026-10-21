@@ -2,6 +2,7 @@ use super::{
     CurrentProviderContent, CurrentProviderToolCall, ProviderMetadata, RuntimeToolStepSnapshot,
     INVALID_TOOL_CALL_NAME, TOOL_CALL_REPAIR_METADATA_KEY,
 };
+use crate::session_loop::RuntimeSessionStepContext;
 use std::collections::BTreeMap;
 use tool_runtime::tool_call_surface::{
     repair_tool_call, runtime_tool_call_canonical_name, ToolCallRepairOutcome,
@@ -72,6 +73,49 @@ pub(super) fn prepare_provider_tool_call(
             .with_provider_metadata(provider_metadata)
         }
     }
+}
+
+/// Carries the immutable sampling identity into the tool lifecycle.
+///
+/// The provider wire must remain protocol-specific, so this metadata is attached only to the
+/// local execution call after model history has been recorded. Tool, MCP and lifecycle consumers
+/// can therefore audit the exact step that authorized the call without leaking Lime-only fields
+/// into the provider request.
+pub(super) fn annotate_step_context(
+    mut call: CurrentProviderToolCall,
+    context: Option<&RuntimeSessionStepContext>,
+) -> CurrentProviderToolCall {
+    let Some(metadata) = runtime_step_context_metadata(context) else {
+        return call;
+    };
+    call.provider_metadata
+        .insert("runtime_step_context".to_string(), metadata);
+    call
+}
+
+pub(super) fn annotate_custom_step_context(
+    mut call: model_provider::current_client::CurrentProviderCustomToolCall,
+    context: Option<&RuntimeSessionStepContext>,
+) -> model_provider::current_client::CurrentProviderCustomToolCall {
+    let Some(metadata) = runtime_step_context_metadata(context) else {
+        return call;
+    };
+    call.provider_metadata
+        .insert("runtime_step_context".to_string(), metadata);
+    call
+}
+
+fn runtime_step_context_metadata(
+    context: Option<&RuntimeSessionStepContext>,
+) -> Option<serde_json::Value> {
+    let context = context?;
+    Some(serde_json::json!({
+        "session_id": context.session_id,
+        "turn_id": context.turn_id,
+        "step_index": context.step_index,
+        "context_epoch": context.context_epoch,
+        "mailbox_delivery_phase": format!("{:?}", context.mailbox_delivery_phase),
+    }))
 }
 
 pub(super) fn model_call_names(content: &[CurrentProviderContent]) -> BTreeMap<String, String> {

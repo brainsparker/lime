@@ -227,11 +227,124 @@ fn fork_history_interrupts_only_the_default_trailing_turn() {
     assert_eq!(changes.changed_turns[0].turn_id.as_str(), "turn-complete");
 }
 
-fn fork_params() -> ThreadForkParams {
-    serde_json::from_value(serde_json::json!({
-        "threadId": "source-thread"
+#[test]
+fn ephemeral_fork_snapshot_preserves_ephemeral_metadata_without_persisting_flag() {
+    let mut params = fork_params();
+    params.ephemeral = true;
+    let source = thread_with_turns(&[("turn-complete", TurnStatus::Completed)]);
+    let target = fork_thread_snapshot(
+        source,
+        "target-session",
+        "target-thread",
+        1_700_000_000_001,
+        &params,
+        1,
+    )
+    .expect("ephemeral fork snapshot");
+    assert_eq!(target.metadata["ephemeral"], serde_json::json!(true));
+    assert_eq!(target.forked_from_id, Some(ThreadId::new("source-thread")));
+}
+
+#[test]
+fn ephemeral_fork_is_allowed_by_parameter_validation() {
+    let mut params = fork_params();
+    params.ephemeral = true;
+    validate_fork_params(&params).expect("Codex ephemeral fork is a current path");
+}
+
+#[test]
+fn rollout_path_fork_does_not_require_a_thread_id() {
+    let params: ThreadForkParams = serde_json::from_value(serde_json::json!({
+        "threadId": "",
+        "path": "sessions/2026/10/21/rollout-source.jsonl"
     }))
-    .expect("fork params")
+    .expect("path fork params");
+    validate_fork_params(&params).expect("Codex path fork resolves its source by rollout path");
+}
+
+#[test]
+fn ephemeral_media_rewrites_canonical_seed_and_session_input_without_source_writes() {
+    use model_provider::current_client::CurrentProviderContent;
+    let temp = tempfile::tempdir().unwrap();
+    let store = super::super::SidecarStore::new(temp.path()).unwrap();
+    let png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+    let prepared = super::super::input_media::prepare_runtime_input(
+        vec![AgentInput::Image {
+            uri: png.into(),
+            detail: Some(agent_protocol::ImageDetail::High),
+        }],
+        Some(&store),
+        "source-session",
+    )
+    .unwrap();
+    let mut source = thread_with_turns(&[("turn-1", TurnStatus::Completed)]);
+    source.turns[0].items[0].payload = ThreadItemPayload::UserMessage {
+        content: prepared.durable.clone(),
+        client_id: None,
+    };
+    let mut history = fork_history(
+        &source,
+        &ThreadForkParams {
+            ephemeral: true,
+            ..Default::default()
+        },
+        "target",
+        "target",
+    )
+    .unwrap();
+    let mut source_stored = hydration::stored_session_snapshot(&source);
+    source_stored
+        .turn_inputs
+        .insert("turn-1".into(), prepared.durable);
+    let changes = history.changes.as_ref().unwrap();
+    let mut stored = fork_stored_session(
+        source_stored,
+        "target",
+        "target",
+        &serde_json::json!({"ephemeral":true}),
+        &history.turn_ids,
+        &changes.changed_turns,
+        &changes.changed_items,
+        changes.sequence,
+    )
+    .unwrap();
+    media::inline_ephemeral_fork_media(&mut history, &mut stored, Some(&store), "source-session")
+        .unwrap();
+    let ThreadItemPayload::UserMessage { content, .. } =
+        &history.changes.as_ref().unwrap().changed_items[0].payload
+    else {
+        panic!("user input")
+    };
+    assert!(
+        matches!(&content[0], AgentInput::Image { uri, .. } if uri.starts_with("data:image/png;base64,"))
+    );
+    assert_eq!(content, &stored.turn_inputs["turn-1"]);
+    let canonical: ThreadItem =
+        serde_json::from_value(stored.events[0].payload["item"].clone()).unwrap();
+    assert_eq!(
+        canonical.payload,
+        history.changes.as_ref().unwrap().changed_items[0].payload
+    );
+    store.clear_session("source-session").unwrap();
+    let provider =
+        super::super::provider_history::provider_turn_history_excluding_current_turn_input(
+            &stored,
+            Some(&store),
+            "next",
+        )
+        .unwrap();
+    let messages = provider.messages_for_route("fixture-provider", "fixture-model");
+    assert!(
+        matches!(&messages[0].content[0], CurrentProviderContent::Image { uri, provider_data: Some(data), .. } if uri.starts_with("data:image/png;base64,") && data == uri)
+    );
+    assert!(!temp.path().join("target").exists());
+}
+
+fn fork_params() -> ThreadForkParams {
+    ThreadForkParams {
+        thread_id: "source-thread".to_string(),
+        ..Default::default()
+    }
 }
 
 fn thread_with_turns(turns: &[(&str, TurnStatus)]) -> Thread {

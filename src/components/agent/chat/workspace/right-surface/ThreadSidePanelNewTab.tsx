@@ -2,6 +2,9 @@ import { useRef } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronDown, MessageSquare, Shapes } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ThreadSidePanelRecents } from "./ThreadSidePanelRecents";
+import type { ThreadOutput } from "./threadOutputs";
+import styles from "./ThreadSidePanelNewTab.module.css";
 import {
   projectNewTabTools,
   type ThreadSidePanelAction,
@@ -11,6 +14,8 @@ export interface ThreadSidePanelNewTabProps {
   actions: readonly ThreadSidePanelAction[];
   onActionSelect: (action: ThreadSidePanelAction) => void;
   onChatSelect?: () => void;
+  outputs?: readonly ThreadOutput[];
+  onOpenOutput?: Parameters<typeof ThreadSidePanelRecents>[0]["onOpen"];
 }
 
 const rowClass =
@@ -22,6 +27,8 @@ export function ThreadSidePanelNewTab({
   actions,
   onActionSelect,
   onChatSelect,
+  outputs = [],
+  onOpenOutput,
 }: ThreadSidePanelNewTabProps) {
   const { t } = useTranslation("agent");
   const pending = useRef<ThreadSidePanelAction | null>(null);
@@ -51,12 +58,12 @@ export function ThreadSidePanelNewTab({
   );
   return (
     <div
-      className="@container flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto bg-[color:var(--lime-surface)] px-4 py-8 select-none"
+      className={`${styles.root} flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto bg-[color:var(--lime-surface)] px-4 py-8 select-none`}
       data-new-tab-scroll-root
       data-testid="thread-side-panel-new-tab"
     >
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-10">
-        {!actions.length && !onChatSelect ? (
+        {!actions.length && !onChatSelect && !outputs.length ? (
           <p className="rounded-lg border border-[color:var(--lime-surface-border)] p-3 text-sm text-[color:var(--lime-text-muted)]">
             {t("agentChat.rightSurface.newTab.empty")}
           </p>
@@ -65,7 +72,7 @@ export function ThreadSidePanelNewTab({
             <h3 className="text-sm font-medium text-[color:var(--lime-text)]">
               {t("agentChat.rightSurface.newTab.tools")}
             </h3>
-            <div className="grid grid-cols-1 gap-x-4 gap-y-1 @md:grid-cols-2">
+            <div className={`${styles.tools} grid gap-x-4 gap-y-1`}>
               {onChatSelect ? (
                 <button
                   className={rowClass}
@@ -146,6 +153,9 @@ export function ThreadSidePanelNewTab({
             </div>
           </section>
         )}
+        {onOpenOutput && outputs.length ? (
+          <ThreadSidePanelRecents outputs={outputs} onOpen={onOpenOutput} />
+        ) : null}
       </div>
     </div>
   );

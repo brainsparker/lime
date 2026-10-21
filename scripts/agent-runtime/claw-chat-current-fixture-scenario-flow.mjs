@@ -338,6 +338,7 @@ export async function executeScenarioFlow({
       logStage("run-right-surface-visual-matrix");
       summary.rightSurfaceVisualMatrix = sanitizeJson(
         await runRightSurfaceVisualMatrix({
+          app,
           page,
           options,
           workspace,
@@ -522,7 +523,13 @@ export async function executeScenarioFlow({
       }),
     );
   } else if (options.scenario === "goal") {
-    await runGoalScenario({ page, options, summary, appServerRequests });
+    await runGoalScenario({
+      page,
+      options,
+      summary,
+      appServerRequests,
+      runtimeEnv,
+    });
   } else if (isImageIntentScenario) {
     logStage("run-image-command-scenario");
     Object.assign(

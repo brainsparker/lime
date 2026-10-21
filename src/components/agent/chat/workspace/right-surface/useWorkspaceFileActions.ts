@@ -6,6 +6,7 @@ import { saveFileCopy } from "@/lib/artifact/saveFileCopy";
 import { hasDesktopHostInvokeCapability } from "@/lib/desktop-runtime";
 import { openTarget } from "@/lib/openInTargets";
 import type { OpenInParams } from "@/lib/api/openInTypes";
+import { readFilePreview } from "@/lib/api/fileBrowser";
 import { useFileTabLifecycle } from "../text-file-editor/fileTabLifecycleContext";
 import type { WorkspaceFileMenuActions } from "./workspaceFileContextMenuItems";
 
@@ -22,6 +23,9 @@ export function useWorkspaceFileActions(
   const current = useRef({ scope, mounted: false });
   const pending = useRef<object | null>(null);
   const [busy, setBusy] = useState(false);
+  const canCopyContents =
+    options.openMode !== "workspace" &&
+    (options.hostId == null || options.hostId === "local");
   useLayoutEffect(() => {
     current.current = { scope, mounted: true };
     pending.current = null;
@@ -53,6 +57,7 @@ export function useWorkspaceFileActions(
   };
   return {
     canSaveAs: hasDesktopHostInvokeCapability(),
+    canCopyContents,
     busy: busy || publicFileAction.busy,
     openTarget: (target) =>
       run(async () => {
@@ -69,6 +74,19 @@ export function useWorkspaceFileActions(
           throw new Error("Clipboard unavailable");
         await navigator.clipboard.writeText(path!);
       }),
+    copyContents: () =>
+      !canCopyContents
+        ? Promise.resolve()
+        : run(async (isCurrent) => {
+            const file = await readFilePreview(
+              path!,
+              Number.POSITIVE_INFINITY,
+            ).catch(() => null);
+            if (!isCurrent() || file?.content == null) return;
+            if (!navigator.clipboard?.writeText)
+              throw new Error("Clipboard unavailable");
+            await navigator.clipboard.writeText(file.content);
+          }),
     saveAs: () =>
       run(async (isCurrent) => {
         const saved = await (lifecycle?.saveFile(path!) ??

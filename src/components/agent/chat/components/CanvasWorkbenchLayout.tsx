@@ -54,22 +54,6 @@ export type {
   CanvasWorkbenchTab,
 };
 
-export type CanvasWorkbenchHeaderBadgeTone = "default" | "accent" | "success";
-
-export interface CanvasWorkbenchHeaderBadge {
-  key: string;
-  label: string;
-  tone?: CanvasWorkbenchHeaderBadgeTone;
-}
-
-export interface CanvasWorkbenchSummaryStat {
-  key: string;
-  label: string;
-  value: string;
-  detail: string;
-  tone?: CanvasWorkbenchHeaderBadgeTone;
-}
-
 export interface CanvasWorkbenchPanelCopy {
   introText?: string;
   emptyText?: string;
@@ -80,14 +64,6 @@ export interface CanvasWorkbenchPanelCopy {
 }
 
 export interface CanvasWorkbenchHeaderView {
-  eyebrow?: string;
-  title?: string;
-  subtitle?: string;
-  badges?: CanvasWorkbenchHeaderBadge[];
-  summaryStats?: CanvasWorkbenchSummaryStat[];
-  tabLabel?: string;
-  tabBadge?: string;
-  tabBadgeTone?: "slate" | "sky" | "rose";
   panelCopy?: CanvasWorkbenchPanelCopy;
 }
 
@@ -100,12 +76,6 @@ export interface CanvasWorkbenchPreviewOpenRequest {
 }
 
 export interface CanvasWorkbenchSessionView extends CanvasWorkbenchHeaderView {
-  renderPanel: () => ReactNode;
-}
-
-export interface CanvasWorkbenchUtilityView extends CanvasWorkbenchHeaderView {
-  enabled?: boolean;
-  leadContent?: ReactNode;
   renderPanel: () => ReactNode;
 }
 
@@ -136,8 +106,6 @@ export interface CanvasWorkbenchLayoutProps {
   workbenchMode?: CanvasWorkbenchMode;
   workspaceView?: CanvasWorkbenchHeaderView | null;
   sessionView?: CanvasWorkbenchSessionView | null;
-  outputView?: CanvasWorkbenchUtilityView | null;
-  logView?: CanvasWorkbenchUtilityView | null;
   changeView?: CanvasWorkbenchChangeView | null;
   topRightTools?: ReactNode;
   previewOpenRequest?: CanvasWorkbenchPreviewOpenRequest | null;
@@ -183,8 +151,6 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
   workbenchMode = "default",
   workspaceView = null,
   sessionView = null,
-  outputView = null,
-  logView = null,
   changeView = null,
   topRightTools = null,
   previewOpenRequest = null,
@@ -257,7 +223,6 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
   const isCodingWorkbench = workbenchMode === "coding";
   const hasDefaultPreviewContent = Boolean(defaultPreview?.content.trim());
   const hasCustomSessionView = Boolean(sessionView?.renderPanel);
-  const hasCustomOutputView = Boolean(outputView?.renderPanel);
   const shellRef = useRef<HTMLElement | null>(null);
   const [isStackedLayout, setIsStackedLayout] = useState(false);
   const previewRequestIdentity = previewOpenRequest
@@ -302,7 +267,6 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
     translateWorkbench,
     hasDefaultPreviewContent,
     hasCustomSessionView,
-    hasCustomOutputView,
     isCodingWorkbench,
     changeView,
     previewRequestIdentity,
@@ -526,7 +490,7 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
     if (
       !hasAutoFocusedInitialDocumentTabRef.current &&
       sessionView?.renderPanel &&
-      activeTab === "outputs" &&
+      activeTab === "summary" &&
       documentSelectionKey &&
       documentContext?.selectionKey === documentSelectionKey
     ) {
@@ -576,8 +540,7 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
         documentDiffLineCount: documentDiffLines.length,
         failedChangeItemCount,
         utilityTabs: {
-          outputs: hasCustomOutputView,
-          logs: Boolean(logView?.renderPanel),
+          summary: hasCustomSessionView,
         },
         openedToolTabs,
         translateWorkbench: canvasT,
@@ -586,9 +549,8 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
       changeItemCount,
       documentDiffLines.length,
       failedChangeItemCount,
-      logView?.renderPanel,
       openedToolTabs,
-      hasCustomOutputView,
+      hasCustomSessionView,
       canvasT,
     ],
   );
@@ -753,8 +715,6 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
       loadingDirectories={loadingDirectories}
       workspacePanelCopy={workspaceView?.panelCopy}
       locale={locale}
-      outputView={outputView}
-      logView={logView}
       sessionView={sessionView}
       shellClassName={WORKBENCH_SHELL_CLASSNAME}
       panelClassName={WORKBENCH_PANEL_CLASSNAME}

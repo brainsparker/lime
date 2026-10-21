@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal } from "./Modal";
 
@@ -24,6 +25,8 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const { t } = useTranslation("common");
+  const titleId = useId();
+  const descriptionId = useId();
   const variantStyles = {
     danger: {
       icon: "text-red-500",
@@ -50,6 +53,8 @@ export function ConfirmDialog({
       onClose={onCancel}
       maxWidth="max-w-sm"
       showCloseButton={false}
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
     >
       <div className="p-6">
         <div className="flex items-start gap-4">
@@ -57,8 +62,15 @@ export function ConfirmDialog({
             <AlertTriangle className="h-6 w-6" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold">{resolvedTitle}</h3>
-            <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+            <h3 id={titleId} className="text-lg font-semibold">
+              {resolvedTitle}
+            </h3>
+            <p
+              id={descriptionId}
+              className="mt-2 text-sm text-muted-foreground"
+            >
+              {message}
+            </p>
           </div>
         </div>
         <div className="mt-6 flex justify-end gap-2">

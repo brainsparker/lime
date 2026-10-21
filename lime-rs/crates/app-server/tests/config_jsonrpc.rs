@@ -448,6 +448,65 @@ async fn config_control_plane_uses_the_single_desktop_yaml_layer() {
     );
 }
 
+#[tokio::test]
+async fn desktop_link_preferences_persist_and_invalid_batches_are_atomic() {
+    let temp = TempDir::new().unwrap();
+    let config_path = temp.path().join("config.yaml");
+    let server = AppServer::with_runtime(
+        RuntimeCore::with_backend(Arc::new(MockBackend)).with_app_config_path(config_path.clone()),
+    );
+    initialize(&server).await;
+    let initial = request(&server, 2, METHOD_CONFIG_READ, json!({"includeLayers": true})).await;
+    assert!(initial["result"]["config"].get("desktop").is_none());
+    let preference = json!({
+        "open-link-in-target-preference": "external-browser",
+        "open-local-url-in-target-preference": "in-app-browser",
+        "external-browser-link-shortcut": "primary-shift"
+    });
+    let saved = request(&server, 3, METHOD_CONFIG_BATCH_WRITE, json!({
+        "expectedVersion": initial["result"]["layers"][0]["version"],
+        "edits": [
+            {"keyPath": "desktop", "value": preference, "mergeStrategy": "replace"},
+            {"keyPath": "language", "value": "en-US", "mergeStrategy": "replace"}
+        ]
+    })).await;
+    assert_eq!(saved["result"]["status"], "ok");
+    let persisted = ConfigManager::load(&config_path).unwrap();
+    assert_eq!(serde_json::to_value(&persisted.config().desktop).unwrap(), preference);
+    let bytes = std::fs::read(&config_path).unwrap();
+    for (key, value) in [
+        ("open-link-in-target-preference", json!("unsupported")),
+        ("open-local-url-in-target-preference", json!(false)),
+        ("external-browser-link-shortcut", json!("ctrl")),
+        ("unknown-preference", json!(true)),
+    ] {
+        let rejected = request_error(&server, 4, METHOD_CONFIG_BATCH_WRITE, json!({
+            "edits": [
+                {"keyPath": "language", "value": "ja-JP", "mergeStrategy": "replace"},
+                {"keyPath": format!("desktop.{key}"), "value": value, "mergeStrategy": "replace"}
+            ]
+        })).await;
+        assert!(rejected.get("error").is_some(), "{rejected}");
+        assert_eq!(std::fs::read(&config_path).unwrap(), bytes);
+    }
+    drop(server);
+    let restored = AppServer::with_runtime(
+        RuntimeCore::with_backend(Arc::new(MockBackend)).with_app_config_path(config_path.clone()),
+    );
+    initialize(&restored).await;
+    let read = request(&restored, 5, METHOD_CONFIG_READ, json!({})).await;
+    assert_eq!(read["result"]["config"]["desktop"], preference);
+    assert_eq!(read["result"]["config"]["language"], "en-US");
+    let reset = request(&restored, 6, METHOD_CONFIG_VALUE_WRITE, json!({
+        "keyPath": "desktop.open-link-in-target-preference", "value": null, "mergeStrategy": "replace"
+    })).await;
+    assert_eq!(reset["result"]["status"], "ok");
+    let read = request(&restored, 7, METHOD_CONFIG_READ, json!({})).await;
+    assert!(read["result"]["config"]["desktop"].get("open-link-in-target-preference").is_none());
+    assert_eq!(read["result"]["config"]["desktop"]["open-local-url-in-target-preference"], "in-app-browser");
+    assert_eq!(read["result"]["config"]["desktop"]["external-browser-link-shortcut"], "primary-shift");
+}
+
 async fn initialize(server: &AppServer) {
     let response = request(
         server,

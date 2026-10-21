@@ -21,6 +21,7 @@ const CONFIG_ROOT_KEYS: &[&str] = &[
     "show_raw_agent_reasoning",
     "hide_agent_reasoning",
     "tui",
+    "desktop",
     "routing",
     "retry",
     "logging",

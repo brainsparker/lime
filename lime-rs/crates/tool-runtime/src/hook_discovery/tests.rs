@@ -79,6 +79,39 @@ async = true
 }
 
 #[test]
+fn discovers_mcp_tool_with_codex_handler_metadata() {
+    let (home, cwd) = setup();
+    fs::write(
+        home.path().join("config.toml"),
+        r#"[hooks]
+[[hooks.PreToolUse]]
+[[hooks.PreToolUse.hooks]]
+type = "mcp_tool"
+server = "security"
+tool = "scan"
+input = { severity = "high" }
+timeout = 12
+"#,
+    )
+    .expect("write config");
+
+    let report = discover_hooks(&HookDiscoveryInput {
+        codex_home: home.path().to_path_buf(),
+        cwd: cwd.path().to_path_buf(),
+        plugins: Vec::new(),
+    });
+
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+    assert_eq!(report.hooks.len(), 1);
+    let hook = &report.hooks[0];
+    assert_eq!(hook.snapshot.handler_type, RuntimeHookHandlerType::McpTool);
+    assert_eq!(hook.snapshot.mcp_server.as_deref(), Some("security"));
+    assert_eq!(hook.snapshot.mcp_tool.as_deref(), Some("scan"));
+    assert_eq!(hook.snapshot.timeout_sec, 12);
+    assert!(!hook.is_executable());
+}
+
+#[test]
 fn trusted_hash_enables_same_normalized_definition_and_changes_fail_closed() {
     let (home, cwd) = setup();
     let config_path = home.path().join("config.toml");

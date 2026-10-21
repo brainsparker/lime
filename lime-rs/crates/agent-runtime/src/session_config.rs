@@ -91,6 +91,7 @@ pub struct AgentSessionConfigurationRequest {
 
 #[derive(Debug, Clone)]
 pub struct AgentSessionConfig {
+    pub internal_agent_policy: Option<tool_runtime::internal_agent::InternalAgentPolicy>,
     pub model_history_recorder: Option<crate::model_history::ModelHistoryRecorder>,
     /// App Server-owned plugin components, loaded at each provider step.
     pub plugin_hook_source: Option<tool_runtime::hook_source::PluginHookSourceProviderHandle>,
@@ -123,6 +124,7 @@ pub fn build_agent_session_config(request: AgentSessionConfigurationRequest) -> 
     let stop_hook_target = stop_hook_target_for_source(&request.source, &request.thread_id);
     let stop_hook_transcript_path = stop_hook_transcript_path_for_source(&request.source);
     AgentSessionConfig {
+        internal_agent_policy: None,
         model_history_recorder: None,
         plugin_hook_source: None,
         id: request.session_id,
@@ -312,6 +314,7 @@ impl SessionConfigBuilder {
 
     pub fn build(self) -> AgentSessionConfig {
         AgentSessionConfig {
+            internal_agent_policy: None,
             model_history_recorder: None,
             plugin_hook_source: None,
             id: self.id,

@@ -15,11 +15,15 @@ export function openWorkspaceFile(
     replaceTabId?: string;
   } = {},
 ): ThreadSidePanelTabs {
-  const { sourceTab, replaceTabId, isPreview = false } = options;
+  const { sourceTab, isPreview = false } = options;
+  const replaceTabId =
+    options.replaceTabId ??
+    (sourceTab?.kind === "workspace-new-tab" ? sourceTab.tabId : undefined);
   // 使用内容实例而非可重用的路径 ID，拒绝关闭后迟到的文件选择。
   if (
     sourceTab &&
-    (sourceTab.kind !== "files" || !state.tabs.includes(sourceTab))
+    ((sourceTab.kind !== "files" && sourceTab.kind !== "workspace-new-tab") ||
+      !state.tabs.includes(sourceTab))
   )
     return state;
   if (

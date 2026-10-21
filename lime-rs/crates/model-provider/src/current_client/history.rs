@@ -30,6 +30,18 @@ pub(super) fn prepare_request(
                 continue;
             }
         }
+        for content in &message.content {
+            if let CurrentProviderContent::RawResponseItem(item) = content {
+                if item.get("native").is_some() {
+                    if message.role != CurrentProviderRole::Assistant
+                        || message.producer.as_ref() != Some(&producer)
+                    {
+                        return Err(invalid_history());
+                    }
+                    native_history::validate_route(item, config)?;
+                }
+            }
+        }
         messages.push(message);
     }
     request.messages = messages;
@@ -42,6 +54,9 @@ fn portable_content(
     let CurrentProviderContent::RawResponseItem(item) = part else {
         return Err(invalid_history());
     };
+    if item.get("native").is_some() {
+        return native_history::portable(item);
+    }
     let (parts, kind, field) = match item.get("type").and_then(Value::as_str) {
         Some("message") if item.get("role").and_then(Value::as_str) == Some("assistant") => {
             (item.get("content"), "output_text", "text")
@@ -97,13 +112,27 @@ mod tests {
     }
 
     #[test]
-    fn model_name_switch_on_the_same_provider_preserves_native_history() {
+    fn model_name_switch_on_the_same_provider_drops_native_history_state() {
         let source = super::super::tests::config(Some(RuntimeProviderProtocol::Responses));
         let original = request(&source);
         let mut target = source.clone();
         target.model_name = "another-model".to_string();
         let copy = prepare_request(original.clone(), &target).unwrap();
-        assert_eq!(copy.messages, original.messages);
+        assert_eq!(
+            copy.messages,
+            vec![
+                CurrentProviderMessage::assistant(vec![CurrentProviderContent::Text(
+                    "public summary".to_string()
+                )]),
+                CurrentProviderMessage::assistant(vec![CurrentProviderContent::Text(
+                    "visible answer".to_string()
+                )]),
+                CurrentProviderMessage::user(vec![CurrentProviderContent::Text(
+                    "next".to_string()
+                )])
+            ]
+        );
+        assert_eq!(original.messages, request(&source).messages);
     }
 
     #[test]

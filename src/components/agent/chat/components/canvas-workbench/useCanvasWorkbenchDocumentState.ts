@@ -58,7 +58,6 @@ interface UseCanvasWorkbenchDocumentStateParams {
   translateWorkbench: CanvasWorkbenchTranslation;
   hasDefaultPreviewContent: boolean;
   hasCustomSessionView: boolean;
-  hasCustomOutputView: boolean;
   isCodingWorkbench: boolean;
   changeView?: CanvasWorkbenchChangeView | null;
   previewRequestIdentity?: string | null;
@@ -142,7 +141,6 @@ export function useCanvasWorkbenchDocumentState({
   translateWorkbench,
   hasDefaultPreviewContent,
   hasCustomSessionView,
-  hasCustomOutputView,
   isCodingWorkbench,
   changeView,
   previewRequestIdentity = null,
@@ -381,8 +379,8 @@ export function useCanvasWorkbenchDocumentState({
     workspaceUnavailable,
   ]);
 
-  const canShowOutputsTab = Boolean(
-    sessionContext || hasCustomSessionView || hasCustomOutputView,
+  const canShowSummaryTab = Boolean(
+    sessionContext || hasCustomSessionView,
   );
   const activeToolTabKind = resolveCanvasWorkbenchToolTabKind(activeTab);
   const activePreviewContext = isCanvasWorkbenchPreviewMode(activeTab)
@@ -390,7 +388,7 @@ export function useCanvasWorkbenchDocumentState({
     : activeToolTabKind === "project-files" &&
         documentSelectionKey?.startsWith("workspace-file:")
       ? documentContext
-      : activeTab === "outputs" || activeTab === "logs"
+      : activeTab === "summary"
         ? hasCustomSessionView
           ? null
           : sessionContext
@@ -463,7 +461,7 @@ export function useCanvasWorkbenchDocumentState({
       projectedIdentity !== acceptedIdentity &&
       projectedContext?.selectionKey === nextSelectionKey;
     const nextTab =
-      activeTab === "outputs" && !canShowOutputsTab
+      activeTab === "summary" && !canShowSummaryTab
         ? documentContext
           ? previewModeState.defaultMode
           : "workspace"
@@ -494,7 +492,7 @@ export function useCanvasWorkbenchDocumentState({
   }, [
     acceptedIdentity,
     activeTab,
-    canShowOutputsTab,
+    canShowSummaryTab,
     documentContext,
     documentSelectionKey,
     fallbackSelectionKey,

@@ -139,6 +139,72 @@ fn rollout_budget_reminder_forwards_the_preappended_canonical_event() {
 }
 
 #[test]
+fn same_turn_compaction_forwards_its_preappended_canonical_event() {
+    let mut sink = TestRuntimeEventSink::default();
+    let mut coding_event_mirror = coding_events::CodingEventMirror::default();
+    let mut proposed_plan_parser = proposed_plan_parser::ProposedPlanParser::default();
+    let mut reasoning_event_state = reasoning_events::ReasoningEventState::default();
+
+    emit_runtime_agent_event_with_coding_mirror_and_plan_parser_with_soul_style(
+        &RuntimeAgentEvent::ContextCompactionCompleted {
+            item_id: "compact-turn-1".to_string(),
+            trigger: "context_limit".to_string(),
+            detail: Some(
+                serde_json::json!({
+                    "contextEpoch": 2,
+                    "coveredThroughSequence": 11,
+                })
+                .to_string(),
+            ),
+            durable_event_id: Some("event-compaction-1".to_string()),
+        },
+        &mut sink,
+        &mut coding_event_mirror,
+        &mut proposed_plan_parser,
+        &mut reasoning_event_state,
+        None,
+        None,
+    )
+    .expect("same-turn compaction should forward its durable receipt");
+
+    assert!(sink.events.is_empty());
+    assert!(sink.transient_events.is_empty());
+    assert_eq!(sink.preappended_event_ids, ["event-compaction-1"]);
+}
+
+#[test]
+fn compaction_without_receipt_is_transient() {
+    let mut sink = TestRuntimeEventSink::default();
+    let mut coding_event_mirror = coding_events::CodingEventMirror::default();
+    let mut proposed_plan_parser = proposed_plan_parser::ProposedPlanParser::default();
+    let mut reasoning_event_state = reasoning_events::ReasoningEventState::default();
+
+    emit_runtime_agent_event_with_coding_mirror_and_plan_parser_with_soul_style(
+        &RuntimeAgentEvent::ContextCompactionCompleted {
+            item_id: "compact-test".to_string(),
+            trigger: "context_limit".to_string(),
+            detail: None,
+            durable_event_id: None,
+        },
+        &mut sink,
+        &mut coding_event_mirror,
+        &mut proposed_plan_parser,
+        &mut reasoning_event_state,
+        None,
+        None,
+    )
+    .expect("receipt-less compaction should remain observable");
+
+    assert!(sink.events.is_empty());
+    assert!(sink.preappended_event_ids.is_empty());
+    assert_eq!(sink.transient_events.len(), 1);
+    assert_eq!(
+        sink.transient_events[0].event_type,
+        "context.compaction.completed"
+    );
+}
+
+#[test]
 fn model_events_preserve_route_evidence_and_reroute_is_transient() {
     let mut sink = TestRuntimeEventSink::default();
     let mut coding_event_mirror = coding_events::CodingEventMirror::default();
@@ -318,6 +384,7 @@ pub(super) fn request_for_test(
         command_publisher: None,
         rollout_budget_reminder_source: None,
         mid_turn_compaction_commit: None,
+        internal_agent_policy: None,
     }
 }
 

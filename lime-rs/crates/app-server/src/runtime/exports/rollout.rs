@@ -27,6 +27,7 @@ impl RuntimeCore {
                 },
                 title: format!("{export_kind}-{}", read.session.session_id),
                 source: source_method.to_string(),
+                source_thread_id: Some(read.session.thread_id.clone()),
                 exported_at: exported_at.to_string(),
                 content: build_rollout_summary_candidate_markdown(
                     read,

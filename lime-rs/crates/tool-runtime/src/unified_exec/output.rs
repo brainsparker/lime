@@ -134,6 +134,16 @@ pub(super) fn project_output(output: UnifiedExecCallOutput) -> RuntimeToolExecut
     structured["process_id"] = json!(output.process.process_id.clone());
     structured["process_status"] = json!(output.process.status.label());
     let success = output.exit_code.map(|code| code == 0).unwrap_or(true);
+    let memory_usage = crate::memory_usage::usage_from_command(&output.invocation.command)
+        .into_iter()
+        .map(|mut usage| {
+            if let Some(object) = usage.as_object_mut() {
+                object.insert("success".to_string(), json!(success));
+                object.insert("tool".to_string(), json!(EXEC_COMMAND_TOOL_NAME));
+            }
+            usage
+        })
+        .collect::<Vec<_>>();
     let serialized = serde_json::to_string(&structured).unwrap_or_else(|_| "{}".to_string());
     let mut metadata = output.process.metadata();
     metadata.extend(output.invocation.metadata());
@@ -161,6 +171,7 @@ pub(super) fn project_output(output: UnifiedExecCallOutput) -> RuntimeToolExecut
         ),
         ("execution_surface".to_string(), json!("unified_exec")),
         ("executionSurface".to_string(), json!("unified_exec")),
+        ("memoryUsage".to_string(), json!(memory_usage)),
     ]);
     RuntimeToolExecutionResult::new(
         success,

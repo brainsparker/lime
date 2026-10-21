@@ -79,7 +79,9 @@ impl HookGatedToolExecutor {
             tool_arguments: Some(request.params.to_string()),
             tool_output: None,
             content: None,
+            compact: None,
             stop: None,
+            interrupt: None,
         }
     }
 
@@ -260,6 +262,9 @@ mod tests {
             execution_mode: RuntimeHookExecutionMode::Sync,
             matcher: None,
             command: Some("true".to_string()),
+            mcp_server: None,
+            mcp_tool: None,
+            mcp_input: None,
             timeout_sec: 5,
             status_message: None,
             additional_context_limit: None,

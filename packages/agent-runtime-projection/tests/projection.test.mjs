@@ -313,7 +313,7 @@ test("projectCodingWorkbenchViewFromEvents consumes current thread read model co
   assert.equal(view.tests[0].suite, "unit");
   assert.equal(view.actions.length, 1);
   assert.equal(view.actions[0].actionId, "action-approve-command");
-  assert.equal(view.ui.preferredTab, "outputs");
+  assert.equal(view.ui.preferredTab, "summary");
 });
 
 test("projectCodingWorkbenchViewFromEvents consumes canonical ThreadItems", () => {
@@ -355,7 +355,7 @@ test("projectCodingWorkbenchViewFromEvents consumes canonical ThreadItems", () =
   assert.equal(view.commands[0].status, "failed");
   assert.equal(view.tests[0].suite, "coding-target");
   assert.equal(view.tests[0].result, "failed");
-  assert.equal(view.ui.preferredTab, "outputs");
+  assert.equal(view.ui.preferredTab, "summary");
 });
 
 test("projectCodingWorkbenchViewFromEvents consumes current read model artifacts as file changes", () => {

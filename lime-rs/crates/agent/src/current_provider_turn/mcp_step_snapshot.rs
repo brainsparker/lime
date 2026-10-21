@@ -32,6 +32,8 @@ use tool_runtime::turn_tool_surface::{
 
 const MCP_TOOL_DISCOVERY_TIMEOUT: Duration = Duration::from_secs(2);
 const DYNAMIC_TOOLS_METADATA_KEY: &str = "dynamicTools";
+pub(super) const GET_CONTEXT_REMAINING_TOOL_NAME: &str = "get_context_remaining";
+pub(super) const NEW_CONTEXT_WINDOW_TOOL_NAME: &str = "new_context";
 
 #[cfg(test)]
 #[path = "mcp_step_snapshot/async_user_input_tests.rs"]
@@ -191,6 +193,7 @@ pub(super) fn current_tool_step_snapshot_source(
     tool_mode: code_mode::RuntimeToolMode,
     supports_custom_tools: bool,
     async_user_input_policy: AsyncUserInputPolicy,
+    internal_agent_policy: Option<tool_runtime::internal_agent::InternalAgentPolicy>,
 ) -> RuntimeToolStepSnapshotSourceHandle {
     let deferred_tools = DeferredToolSelections::default();
     RuntimeToolStepSnapshotSourceHandle::new(Arc::new(CurrentTurnToolStepSnapshotSource {
@@ -208,6 +211,7 @@ pub(super) fn current_tool_step_snapshot_source(
         tool_mode,
         supports_custom_tools,
         async_user_input_policy,
+        internal_agent_policy,
     }))
 }
 
@@ -259,6 +263,28 @@ fn tool_definitions(
         .collect::<HashSet<_>>();
     let native_dispatch = tool_runtime::native_dispatch::runtime_native_dispatch();
     let mut definitions = native_dispatch.definitions();
+    if context_window_tools_enabled(turn_context) {
+        definitions.extend([
+            RuntimeToolDefinition::new(
+                GET_CONTEXT_REMAINING_TOOL_NAME,
+                "Get the remaining tokens in the current context window.",
+                serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }),
+            ),
+            RuntimeToolDefinition::new(
+                NEW_CONTEXT_WINDOW_TOOL_NAME,
+                "Start a new context window without summarizing conversation history.",
+                serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                }),
+            ),
+        ]);
+    }
     definitions.extend(tool_runtime::unified_exec::unified_exec_tool_definitions());
     definitions.push(tool_runtime::request_permissions::request_permissions_tool_definition());
     definitions.push(tool_runtime::request_user_input::request_user_input_tool_definition());
@@ -320,6 +346,25 @@ fn tool_definitions(
     });
     definitions.sort_by(|left, right| left.name.cmp(&right.name));
     Ok((definitions, dynamic_routes))
+}
+
+fn context_window_tools_enabled(
+    turn_context: Option<&agent_protocol::turn_context::TurnContextOverride>,
+) -> bool {
+    let Some(context) = turn_context else {
+        return false;
+    };
+    let metadata = &context.metadata;
+    let has_context_policy = metadata
+        .get("lime_runtime")
+        .and_then(|runtime| runtime.get("context_policy"))
+        .is_some_and(Value::is_object);
+    has_context_policy
+        && metadata
+            .get("lime_runtime")
+            .and_then(|runtime| runtime.get("auto_compact"))
+            .and_then(Value::as_bool)
+            != Some(false)
 }
 
 fn dynamic_tool_definitions(
@@ -445,6 +490,7 @@ fn resolved_tool_environment_ids(
 
 #[derive(Clone)]
 struct CurrentTurnToolStepSnapshotSource {
+    internal_agent_policy: Option<tool_runtime::internal_agent::InternalAgentPolicy>,
     state: AgentRuntimeState,
     policy: RequestToolPolicy,
     turn_context: Option<agent_protocol::turn_context::TurnContextOverride>,
@@ -489,23 +535,31 @@ fn code_mode_step_plan(
 }
 
 impl RuntimeToolStepSnapshotSource for CurrentTurnToolStepSnapshotSource {
-    fn capture(&self) -> RuntimeToolStepSnapshotFuture<'_> {
+    fn capture(
+        &self,
+        step_context: Option<&agent_runtime::session_loop::RuntimeSessionStepContext>,
+    ) -> RuntimeToolStepSnapshotFuture<'_> {
+        let step_context = step_context.cloned();
         Box::pin(async move {
-            let mcp_snapshot = mcp_step_snapshot(
-                &self.state,
-                &self.session_id,
-                &self.thread_id,
-                MCP_TOOL_DISCOVERY_TIMEOUT,
-                &self.deferred_tools,
-            )
-            .await;
+            let mcp_snapshot = if self.internal_agent_policy.is_some() {
+                tool_runtime::mcp_connection::McpStepSnapshot::empty(RuntimeToolCaller::assistant())
+            } else {
+                mcp_step_snapshot(
+                    &self.state,
+                    &self.session_id,
+                    &self.thread_id,
+                    MCP_TOOL_DISCOVERY_TIMEOUT,
+                    &self.deferred_tools,
+                )
+                .await
+            };
             let mcp_snapshot = if orchestrator_mcp_enabled(self.turn_context.as_ref()) {
                 mcp_snapshot
             } else {
                 mcp_snapshot.without_server(lime_skills::APPS_MCP_SERVER_NAME)
             };
             self.mcp_tool_routes.replace_from_snapshot(&mcp_snapshot);
-            let (definitions, dynamic_routes) = tool_definitions(
+            let (mut definitions, mut dynamic_routes) = tool_definitions(
                 &self.state,
                 &self.policy,
                 self.turn_context.as_ref(),
@@ -513,6 +567,10 @@ impl RuntimeToolStepSnapshotSource for CurrentTurnToolStepSnapshotSource {
                 self.agent_control_gateway.as_ref(),
                 self.async_user_input_policy,
             )?;
+            if let Some(policy) = self.internal_agent_policy.as_ref() {
+                definitions.retain(|definition| policy.allows_tool(&definition.name));
+                dynamic_routes.clear();
+            }
             self.dynamic_tool_routes.replace(dynamic_routes);
             let serial_mcp_tool_names = mcp_snapshot
                 .tools()
@@ -535,6 +593,7 @@ impl RuntimeToolStepSnapshotSource for CurrentTurnToolStepSnapshotSource {
             let default_environment_id =
                 super::environment::primary_environment_id(self.turn_context.as_ref());
             let executor = RuntimeToolExecutorHandle::new(Arc::new(CurrentTurnToolExecutor {
+                internal_agent_policy: self.internal_agent_policy.clone(),
                 state: self.state.clone(),
                 policy: self.policy.clone(),
                 event_sender: self.event_sender.clone(),
@@ -596,6 +655,9 @@ impl RuntimeToolStepSnapshotSource for CurrentTurnToolStepSnapshotSource {
                 Some(gateway) => snapshot.with_filesystem_gateway(gateway),
                 None => snapshot,
             };
+            let snapshot = step_context.map_or(snapshot.clone(), |context| {
+                snapshot.with_step_context(context)
+            });
             if !attach_session {
                 return Ok(snapshot);
             }
@@ -622,392 +684,4 @@ fn orchestrator_mcp_enabled(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::request_tool_policy::{
-        resolve_request_tool_policy_with_mode, RequestToolPolicyMode,
-    };
-    use serde_json::json;
-    use std::collections::HashMap;
-    use tool_runtime::turn_tool_surface::{
-        RUNTIME_METADATA_KEY, RUNTIME_TOOL_SURFACE_KEY, TURN_TOOL_SURFACE_COMPACT_TOOLS,
-        TURN_TOOL_SURFACE_DIRECT_ANSWER,
-    };
-
-    fn turn_context_with_tool_surface(
-        surface: &str,
-    ) -> agent_protocol::turn_context::TurnContextOverride {
-        agent_protocol::turn_context::TurnContextOverride {
-            metadata: HashMap::from([(
-                RUNTIME_METADATA_KEY.to_string(),
-                json!({ RUNTIME_TOOL_SURFACE_KEY: surface }),
-            )]),
-            ..Default::default()
-        }
-    }
-
-    #[tokio::test]
-    async fn provider_step_applies_structured_turn_tool_surface() {
-        let state = AgentRuntimeState::new();
-        state
-            .register_tool_search_tools(Arc::new(EmptyToolSearchGateway))
-            .await
-            .expect("tool search registration");
-        let policy = resolve_request_tool_policy_with_mode(None, Some(RequestToolPolicyMode::Auto));
-        let snapshot =
-            tool_runtime::mcp_connection::McpStepSnapshot::empty(RuntimeToolCaller::assistant());
-        let full = tool_definitions(
-            &state,
-            &policy,
-            None,
-            &snapshot,
-            None,
-            AsyncUserInputPolicy::default(),
-        )
-        .expect("full definitions")
-        .0;
-        let compact_context = turn_context_with_tool_surface(TURN_TOOL_SURFACE_COMPACT_TOOLS);
-        let compact = tool_definitions(
-            &state,
-            &policy,
-            Some(&compact_context),
-            &snapshot,
-            None,
-            AsyncUserInputPolicy::default(),
-        )
-        .expect("compact definitions")
-        .0;
-        let direct_context = turn_context_with_tool_surface(TURN_TOOL_SURFACE_DIRECT_ANSWER);
-        let direct = tool_definitions(
-            &state,
-            &policy,
-            Some(&direct_context),
-            &snapshot,
-            None,
-            AsyncUserInputPolicy::default(),
-        )
-        .expect("direct definitions")
-        .0;
-
-        assert!(compact.len() < full.len());
-        assert!(!full.iter().any(|tool| tool.name == "update_plan"));
-        assert!(compact.iter().any(|tool| tool.name == "WebSearch"));
-        assert!(compact.iter().any(|tool| tool.name == "tool_search"));
-        assert!(compact.iter().any(|tool| tool.name == "exec_command"));
-        assert!(compact.iter().any(|tool| tool.name == "write_stdin"));
-        assert!(compact.iter().any(|tool| tool.name == "apply_patch"));
-        assert!(compact.iter().any(|tool| tool.name == "request_user_input"));
-        assert!(!compact.iter().any(|tool| tool.name == "update_plan"));
-        assert!(direct.is_empty());
-
-        let mut enabled_context = agent_protocol::turn_context::TurnContextOverride::default();
-        enabled_context.metadata.insert(
-            "config".to_string(),
-            json!({
-                "agent": {
-                    "toolExecution": { "update_plan_enabled": true }
-                }
-            }),
-        );
-        let enabled = tool_definitions(
-            &state,
-            &policy,
-            Some(&enabled_context),
-            &snapshot,
-            None,
-            AsyncUserInputPolicy::default(),
-        )
-        .expect("enabled definitions")
-        .0;
-        assert!(enabled.iter().any(|tool| tool.name == "update_plan"));
-    }
-
-    #[test]
-    fn primary_environment_defaults_native_tools_without_overriding_mcp_provenance() {
-        let definitions = vec![
-            RuntimeToolDefinition::new("exec_command", "Execute", json!({})),
-            RuntimeToolDefinition::new("docs__search", "Search docs", json!({})),
-        ];
-        let environment_ids = resolved_tool_environment_ids(
-            &definitions,
-            HashMap::from([("docs__search".to_string(), "local".to_string())]),
-            Some("remote-primary"),
-        );
-
-        assert_eq!(
-            environment_ids.get("exec_command").map(String::as_str),
-            Some("remote-primary")
-        );
-        assert_eq!(
-            environment_ids.get("docs__search").map(String::as_str),
-            Some("local")
-        );
-    }
-
-    #[test]
-    fn compact_surface_defers_agent_control_unless_explicitly_allowed() {
-        let state = AgentRuntimeState::new();
-        let policy = resolve_request_tool_policy_with_mode(None, Some(RequestToolPolicyMode::Auto));
-        let snapshot =
-            tool_runtime::mcp_connection::McpStepSnapshot::empty(RuntimeToolCaller::assistant());
-        let compact_context = turn_context_with_tool_surface(TURN_TOOL_SURFACE_COMPACT_TOOLS);
-
-        let without_gateway = tool_definitions(
-            &state,
-            &policy,
-            Some(&compact_context),
-            &snapshot,
-            None,
-            AsyncUserInputPolicy::default(),
-        )
-        .expect("definitions")
-        .0;
-        assert!(!without_gateway
-            .iter()
-            .any(|tool| { tool_runtime::agent_control::is_agent_control_tool_name(&tool.name) }));
-
-        let gateway = tool_runtime::agent_control::AgentControlGatewayHandle::new(Arc::new(
-            RejectingAgentControlGateway,
-        ));
-        let with_gateway = tool_definitions(
-            &state,
-            &policy,
-            Some(&compact_context),
-            &snapshot,
-            Some(&gateway),
-            AsyncUserInputPolicy::default(),
-        )
-        .expect("definitions")
-        .0;
-        assert!(!with_gateway
-            .iter()
-            .any(|tool| tool_runtime::agent_control::is_agent_control_tool_name(&tool.name)));
-
-        let mut explicitly_allowed_context = compact_context;
-        explicitly_allowed_context.metadata.insert(
-            "tool_scope".to_string(),
-            json!({ "allowed_tools": ["spawn_agent", "list_agents"] }),
-        );
-        let explicitly_allowed = tool_definitions(
-            &state,
-            &policy,
-            Some(&explicitly_allowed_context),
-            &snapshot,
-            Some(&gateway),
-            AsyncUserInputPolicy::default(),
-        )
-        .expect("definitions")
-        .0;
-        let names = explicitly_allowed
-            .iter()
-            .filter(|tool| tool_runtime::agent_control::is_agent_control_tool_name(&tool.name))
-            .map(|tool| tool.name.as_str())
-            .collect::<Vec<_>>();
-        assert_eq!(names, vec!["list_agents", "spawn_agent"]);
-
-        let full = tool_definitions(
-            &state,
-            &policy,
-            None,
-            &snapshot,
-            Some(&gateway),
-            AsyncUserInputPolicy::default(),
-        )
-        .expect("definitions")
-        .0;
-        assert_eq!(
-            full.iter()
-                .filter(|tool| tool_runtime::agent_control::is_agent_control_tool_name(&tool.name))
-                .count(),
-            tool_runtime::agent_control::agent_control_tool_definitions().len()
-        );
-    }
-
-    struct RejectingAgentControlGateway;
-
-    struct EmptyToolSearchGateway;
-
-    #[async_trait::async_trait]
-    impl tool_runtime::tool_search::ToolSearchGateway for EmptyToolSearchGateway {
-        async fn search_tools(
-            &self,
-            _params: app_server_protocol::McpToolSearchParams,
-        ) -> Result<app_server_protocol::McpToolListResponse, String> {
-            Ok(app_server_protocol::McpToolListResponse { tools: Vec::new() })
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl tool_runtime::agent_control::AgentControlGateway for RejectingAgentControlGateway {
-        async fn execute(
-            &self,
-            _request: tool_runtime::agent_control::AgentControlGatewayRequest,
-        ) -> Result<
-            tool_runtime::agent_control::AgentControlGatewayResult,
-            tool_runtime::agent_control::AgentControlGatewayError,
-        > {
-            Err(tool_runtime::agent_control::AgentControlGatewayError::new(
-                "test gateway must not execute",
-            ))
-        }
-    }
-
-    #[tokio::test]
-    async fn deferred_tool_selections_are_turn_local_and_report_real_updates() {
-        let first_turn = DeferredToolSelections::default();
-        let second_turn = DeferredToolSelections::default();
-        let mut result = CallToolResult::success(Vec::new());
-        result.structured_content = Some(serde_json::json!({
-            "matches": ["docs__query", "docs__query", "  "],
-            "tool_surface_updated": false
-        }));
-
-        assert!(
-            first_turn
-                .activate_from_tool_search_result(&mut result)
-                .await
-        );
-        assert_eq!(
-            result
-                .structured_content
-                .as_ref()
-                .and_then(|value| value.get("tool_surface_updated")),
-            Some(&Value::Bool(true))
-        );
-        assert_eq!(
-            first_turn.snapshot().await,
-            HashSet::from(["docs__query".to_string()])
-        );
-        assert!(second_turn.snapshot().await.is_empty());
-
-        assert!(
-            !first_turn
-                .activate_from_tool_search_result(&mut result)
-                .await
-        );
-        assert_eq!(
-            result
-                .structured_content
-                .as_ref()
-                .and_then(|value| value.get("tool_surface_updated")),
-            Some(&Value::Bool(false))
-        );
-    }
-
-    #[test]
-    fn trusted_dynamic_tools_freeze_exact_namespace_route_and_reject_collisions() {
-        let state = AgentRuntimeState::new();
-        let policy = resolve_request_tool_policy_with_mode(None, Some(RequestToolPolicyMode::Auto));
-        let snapshot =
-            tool_runtime::mcp_connection::McpStepSnapshot::empty(RuntimeToolCaller::assistant());
-        let context = agent_protocol::turn_context::TurnContextOverride {
-            metadata: HashMap::from([(
-                "runtime_request".to_string(),
-                json!({
-                    "dynamicTools": [{
-                        "type": "namespace",
-                        "name": "desktop",
-                        "description": "Desktop host",
-                        "tools": [{
-                            "type": "function",
-                            "name": "appInfo",
-                            "description": "Read app information",
-                            "inputSchema": {"type": "object", "properties": {}}
-                        }]
-                    }]
-                }),
-            )]),
-            ..Default::default()
-        };
-        let (definitions, routes) = tool_definitions(
-            &state,
-            &policy,
-            Some(&context),
-            &snapshot,
-            None,
-            AsyncUserInputPolicy::default(),
-        )
-        .expect("dynamic definitions");
-        assert!(definitions
-            .iter()
-            .any(|definition| definition.name == "desktop__appInfo"));
-        assert_eq!(
-            routes,
-            vec![DynamicToolRoute {
-                runtime_tool_name: "desktop__appInfo".to_string(),
-                namespace: Some("desktop".to_string()),
-                tool: "appInfo".to_string(),
-            }]
-        );
-
-        let collision = agent_protocol::turn_context::TurnContextOverride {
-            metadata: HashMap::from([(
-                "runtime_request".to_string(),
-                json!({
-                    "dynamicTools": [{
-                        "type": "function",
-                        "name": "exec_command",
-                        "description": "Collision",
-                        "inputSchema": {"type": "object"}
-                    }]
-                }),
-            )]),
-            ..Default::default()
-        };
-        assert!(tool_definitions(
-            &state,
-            &policy,
-            Some(&collision),
-            &snapshot,
-            None,
-            AsyncUserInputPolicy::default()
-        )
-        .is_err());
-    }
-
-    #[test]
-    fn code_mode_step_requires_model_capability_and_executable_session() {
-        let tools = vec![RuntimeToolSnapshot::new(
-            RuntimeToolIdentity::plain("read"),
-            RuntimeToolDefinition::new("read", "Read a file", json!({})),
-            RuntimeToolExposure::Direct,
-            false,
-            true,
-        )];
-
-        let direct = code_mode_step_plan(&tools, code_mode::RuntimeToolMode::Direct, true, true)
-            .expect("direct mode");
-        assert_eq!(
-            direct.tool_plan.resolution.effective,
-            code_mode::RuntimeToolMode::Direct
-        );
-        assert!(!direct.attach_session);
-
-        let missing_capability =
-            code_mode_step_plan(&tools, code_mode::RuntimeToolMode::CodeMode, false, true)
-                .expect("regular CodeMode falls back to direct");
-        assert_eq!(
-            missing_capability.tool_plan.resolution.effective,
-            code_mode::RuntimeToolMode::Direct
-        );
-        assert!(!missing_capability.attach_session);
-
-        let executable =
-            code_mode_step_plan(&tools, code_mode::RuntimeToolMode::CodeMode, true, true)
-                .expect("executable CodeMode");
-        assert_eq!(
-            executable.tool_plan.resolution.effective,
-            code_mode::RuntimeToolMode::CodeMode
-        );
-        assert!(executable.attach_session);
-        assert_eq!(executable.tool_plan.nested_tools[0].global_name, "read");
-
-        assert!(code_mode_step_plan(
-            &tools,
-            code_mode::RuntimeToolMode::CodeModeOnly,
-            true,
-            false,
-        )
-        .is_err());
-    }
-}
+mod tests;

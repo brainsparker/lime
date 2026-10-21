@@ -1,7 +1,52 @@
 use super::{RuntimeCore, RuntimeCoreError};
 use app_server_protocol::*;
+use std::path::Path;
 
 impl RuntimeCore {
+    /// Records Codex-style memory citation feedback after a completed assistant item.
+    /// The citation is durable model output; usage writes are best-effort and never alter the
+    /// current turn result when the auxiliary memory state is unavailable.
+    pub(crate) async fn record_memory_citation_usage_for_event(
+        &self,
+        session_id: &str,
+        event: &crate::RuntimeEvent,
+    ) {
+        if event.event_type != "message.completed" {
+            return;
+        }
+        let Some(value) = event
+            .payload
+            .get("memoryCitation")
+            .or_else(|| event.payload.get("memory_citation"))
+        else {
+            return;
+        };
+        let Some(citation) = crate::memory_store::parse_memory_citation(value) else {
+            return;
+        };
+        let mut roots = vec![MemoryStoreRootParams {
+            scope: MemoryStoreScope::Global,
+            workspace_root: None,
+        }];
+        if let Ok((session, _)) = self.session_snapshot(session_id) {
+            if let Some(workspace_root) = session_workspace_root(&session) {
+                roots.push(MemoryStoreRootParams {
+                    scope: MemoryStoreScope::Workspace,
+                    workspace_root: Some(workspace_root),
+                });
+            }
+        }
+        for root in roots {
+            if let Err(error) = self
+                .app_data_source
+                .record_memory_citation_usage(root, citation.clone())
+                .await
+            {
+                tracing::debug!(session_id, %error, "memory citation usage feedback skipped");
+            }
+        }
+    }
+
     /// Run Codex-style memory phase-1 using the session's current durable route.
     ///
     /// The route is resolved through the same backend admission path as a normal Turn so a
@@ -37,8 +82,8 @@ impl RuntimeCore {
         }
         let session = self.session_snapshot(session_id)?.0;
         let route = self.backend.resolve_memory_stage1_route(&session).await?;
-        self.backend
-            .run_memory_stage2(root, route, self.app_data_source.clone())
+        self.app_data_source
+            .run_memory_stage2(root, route, self)
             .await
     }
 
@@ -187,8 +232,8 @@ impl RuntimeCore {
         }
         let session = self.session_snapshot(&session_id)?.0;
         let route = self.backend.resolve_memory_stage1_route(&session).await?;
-        self.backend
-            .consolidate_memory_store(params, route, self.app_data_source.clone())
+        self.app_data_source
+            .consolidate_memory_store(params, route, self)
             .await
     }
 
@@ -241,6 +286,27 @@ impl RuntimeCore {
             .rebuild_memory_store_index(params)
             .await
     }
+}
+
+fn session_workspace_root(session: &AgentSession) -> Option<String> {
+    let metadata = session
+        .business_object_ref
+        .as_ref()
+        .and_then(|reference| reference.metadata.as_ref())?;
+    [
+        "workspaceRoot",
+        "workspace_root",
+        "projectRoot",
+        "project_root",
+        "workingDir",
+        "working_dir",
+        "cwd",
+    ]
+    .into_iter()
+    .find_map(|key| metadata.get(key).and_then(serde_json::Value::as_str))
+    .map(str::trim)
+    .filter(|value| !value.is_empty() && Path::new(value).is_absolute())
+    .map(ToString::to_string)
 }
 
 #[cfg(test)]

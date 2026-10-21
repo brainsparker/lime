@@ -366,6 +366,35 @@ describe("Right Surface 标签生命周期接线", () => {
     expect(pending.consumePendingRequestsForSurface).not.toHaveBeenCalled();
   });
 
+  it("Browser打开请求只确认当前身份，关闭重开保留已应用标记", () => {
+    const view = mount();
+    act(() =>
+      view.get().local.setActiveBrowserRightSurfaceIntent({
+        source: "rightSurfacePending",
+        sourceRequestId: "request-current",
+        origin: "user",
+        priority: "foreground",
+        launchUrl: "http://localhost:4317/",
+      }),
+    );
+    act(() => view.get().coordinator.handleBrowserLaunchApplied("request-old"));
+    expect(
+      view.get().local.activeBrowserRightSurfaceIntent?.launchApplied,
+    ).not.toBe(true);
+    act(() =>
+      view.get().coordinator.handleBrowserLaunchApplied("request-current"),
+    );
+    expect(
+      view.get().local.activeBrowserRightSurfaceIntent?.launchApplied,
+    ).toBe(true);
+    act(() => view.get().coordinator.handleToggleRightSurfaceBrowser());
+    act(() => view.get().coordinator.handleCloseRightSurfaceTab("browser"));
+    act(() => view.get().coordinator.handleToggleRightSurfaceBrowser());
+    expect(view.get().local.activeBrowserRightSurfaceIntent).toMatchObject({
+      sourceRequestId: "request-current",
+      launchApplied: true,
+    });
+  });
   it("Browser → Files → Browser 保留标签、Browser 标题和 Files 目标", () => {
     const view = mount();
     act(() => view.get().coordinator.handleToggleRightSurfaceBrowser());

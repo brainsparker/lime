@@ -6,10 +6,17 @@ import {
   GOAL_PROMPT,
   GOAL_FIRST_TURN_TEXT,
 } from "./claw-chat-current-fixture-constants.mjs";
-import { sendPromptFromGui } from "./claw-chat-current-fixture-gui-actions.mjs";
+import {
+  sendPromptFromGui,
+  waitForInputReady,
+} from "./claw-chat-current-fixture-gui-actions.mjs";
 import { enableGoalModeFromGui } from "./claw-chat-current-fixture-gui-input-modes.mjs";
 import { waitForGuiChatCompleted } from "./claw-chat-current-fixture-gui-completion-waits.mjs";
-import { waitForSessionReadCompleted } from "./claw-chat-current-fixture-read-model-waits.mjs";
+import {
+  waitForCanonicalThreadIdBySessionId,
+  waitForSessionReadCompleted,
+} from "./claw-chat-current-fixture-read-model-waits.mjs";
+import { waitForBackendLedgerTurnStart } from "./claw-chat-current-fixture-backend-ledger.mjs";
 import { invokeAppServerFromPage } from "./claw-chat-current-fixture-rpc.mjs";
 import {
   assert,
@@ -24,12 +31,19 @@ import { parseJsonRpcRequestsFromInvokeTrace } from "../electron/lib/mcp-config-
 
 export function resolveGoalUserTurn(summary) {
   const scope = summary?.guiGoalCompleted?.completionScope;
-  const sessionId = summary?.goalInputSend?.clicked?.sessionId;
-  const turnId = scope?.runtimeTurnId;
+  const first = summary?.goalFirstTurn;
+  const sessionId = first?.sessionId;
+  const turnId = first?.turnId;
   if (
+    !summary?.goalInputSend?.clicked?.clicked ||
+    summary.goalInputSend.before?.editorSessionId != null ||
+    summary.goalInputSend.clicked.sessionId != null ||
     !sessionId ||
     sessionId !== summary?.sessionId ||
+    !first?.threadId ||
+    first.threadId !== summary?.threadId ||
     !turnId ||
+    scope?.runtimeTurnId !== turnId ||
     scope?.assistantRuntimeTurnId !== turnId ||
     scope?.runtimeTurnStatus !== "completed"
   ) {
@@ -58,21 +72,58 @@ export async function runGoalScenario({
   options,
   summary,
   appServerRequests,
+  runtimeEnv,
 }) {
+  // 已有线程目标编辑只 set；必须从无 Thread 的真实 Composer 验证目标首轮。
+  logStage("open-new-goal-conversation");
+  const setupThreadId = summary.threadId;
+  await page.getByTestId("app-sidebar-new-conversation-button").click();
+  const home = await waitForInputReady(page, options, {
+    allowTaskCenterHomeInput: true,
+  });
+  assert(home.editorSessionId == null, "new Goal must start without a Thread");
+  summary.goalHomeOpened = sanitizeJson(home);
   logStage("enable-goal-mode-from-gui");
   summary.goalModeEnabled = sanitizeJson(
-    await enableGoalModeFromGui(page, options),
+    await enableGoalModeFromGui(page, options, {
+      allowTaskCenterHomeInput: true,
+    }),
   );
 
   logStage("send-goal-prompt-from-gui");
   summary.goalInputSend = sanitizeJson(
-    await sendPromptFromGui(page, options, GOAL_PROMPT),
+    await sendPromptFromGui(page, options, GOAL_PROMPT, {
+      allowTaskCenterHomeInput: true,
+      requireTurnStart: false,
+    }),
   );
+
+  logStage("resolve-new-goal-first-turn");
+  const started = await waitForBackendLedgerTurnStart(
+    runtimeEnv.backendLedgerPath,
+    GOAL_FIRST_TURN_TEXT,
+    options,
+  );
+  const { sessionId, turnId } = started.entry;
+  const threadId = await waitForCanonicalThreadIdBySessionId(
+    page,
+    options,
+    appServerRequests,
+    sessionId,
+  );
+  assert(threadId !== setupThreadId, "Goal reused the fixture setup Thread");
+  Object.assign(summary, {
+    sessionId,
+    threadId,
+    goalFirstTurn: { sessionId, threadId, turnId },
+  });
+  Object.assign(options, { sessionId, threadId });
 
   const completion = {
     prompt: GOAL_PROMPT,
     doneText: GOAL_DONE_TEXT,
     summaryText: "目标已绑定到本轮请求",
+    expectedIdentity: { sessionId, turnId },
   };
   // Active goals immediately continue after a turn. Pause through the real GUI
   // before requiring an idle composer; an inter-turn idle window is not a terminal.

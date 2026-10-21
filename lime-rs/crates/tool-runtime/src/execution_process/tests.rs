@@ -296,6 +296,29 @@ async fn local_process_next_event_delivers_output_before_exit() {
 }
 
 #[tokio::test]
+async fn local_process_wait_can_resume_after_cancellation() {
+    let mut handle = start_local_execution_process(LocalExecutionRequest::new(
+        "process-cancelled-wait",
+        "tool-cancelled-wait",
+        "exec_command",
+        interactive_shell_command(),
+    ))
+    .expect("local process should start");
+    let mut wait = Box::pin(handle.wait());
+    assert!(futures::poll!(wait.as_mut()).is_pending());
+    drop(wait);
+    handle.write_stdin(b"resumed\n".to_vec()).unwrap();
+    handle.close_stdin().unwrap();
+    let snapshot = tokio::time::timeout(Duration::from_secs(10), handle.wait())
+        .await
+        .expect("resumed wait must finish after stdin delivery")
+        .expect("cancellation must not consume the exit receiver");
+    assert_eq!(snapshot.exit_code, Some(0));
+    assert!(snapshot.retained_output.contains("PTY_ECHO:resumed"));
+    assert_eq!(handle.wait().await.unwrap(), snapshot);
+}
+
+#[tokio::test]
 async fn local_process_terminate_sets_terminal_status() {
     let mut handle = start_local_execution_process(LocalExecutionRequest::new(
         "process-local-terminate",

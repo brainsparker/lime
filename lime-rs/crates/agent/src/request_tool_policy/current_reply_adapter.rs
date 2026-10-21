@@ -7,7 +7,6 @@
 use super::{ReplyAttemptError, ReplyInput, RequestToolPolicy, StreamReplyExecution};
 use crate::current_provider_turn::stream_current_provider_turn;
 use crate::protocol::AgentEvent;
-use crate::provider_configuration::ConfiguredSessionProvider;
 use crate::runtime_state::AgentRuntimeState;
 use agent_runtime::session_config::AgentSessionConfig;
 use std::path::Path;
@@ -61,59 +60,6 @@ where
         cancel_token,
         policy,
         None,
-        on_event,
-    )
-    .await
-}
-
-pub(crate) async fn stream_runtime_reply_with_configured_provider<F>(
-    state: &AgentRuntimeState,
-    text: &str,
-    working_directory: Option<&Path>,
-    session_config: AgentSessionConfig,
-    cancel_token: Option<CancellationToken>,
-    policy: &RequestToolPolicy,
-    configured: &ConfiguredSessionProvider,
-    on_event: F,
-) -> Result<StreamReplyExecution, ReplyAttemptError>
-where
-    F: FnMut(&AgentEvent) + Send,
-{
-    stream_current(
-        state,
-        Some(configured.provider()),
-        ReplyInput::text(text),
-        working_directory,
-        session_config,
-        cancel_token,
-        policy,
-        None,
-        on_event,
-    )
-    .await
-}
-
-pub(crate) async fn stream_runtime_reply_with_configured_provider_for_direct_generation<F>(
-    state: &AgentRuntimeState,
-    text: &str,
-    working_directory: Option<&Path>,
-    session_config: AgentSessionConfig,
-    cancel_token: Option<CancellationToken>,
-    policy: &RequestToolPolicy,
-    configured: &ConfiguredSessionProvider,
-    on_event: F,
-) -> Result<StreamReplyExecution, ReplyAttemptError>
-where
-    F: FnMut(&AgentEvent) + Send,
-{
-    stream_runtime_reply_with_configured_provider(
-        state,
-        text,
-        working_directory,
-        session_config,
-        cancel_token,
-        policy,
-        configured,
         on_event,
     )
     .await

@@ -352,6 +352,90 @@ async fn inline_operations_run_in_submission_order_without_replacing_the_active_
 }
 
 #[tokio::test]
+async fn explicit_interrupt_runs_interrupt_callback_but_replacement_does_not() {
+    let registry = RuntimeSessionRegistry::default();
+    let session = actor(&registry, "session-interrupt-callback").await;
+    let interrupted = Arc::new(AtomicUsize::new(0));
+    let interrupted_for_task = Arc::clone(&interrupted);
+    let task = RuntimeSessionClosureTask::new(
+        "turn-interrupt-callback",
+        Vec::new(),
+        |_context, _input, cancellation_token| {
+            Box::pin(async move {
+                cancellation_token.cancelled().await;
+                Ok(())
+            })
+        },
+    )
+    .with_interrupt(move |_context| {
+        let interrupted = Arc::clone(&interrupted_for_task);
+        Box::pin(async move {
+            interrupted.fetch_add(1, Ordering::SeqCst);
+        })
+    });
+    let submission = session
+        .submit(Arc::new(task), false)
+        .await
+        .expect("submit interrupt callback task");
+    assert!(session.interrupt().await.expect("interrupt active task"));
+    assert_eq!(
+        submission.completion.await.expect("interrupt completion"),
+        Ok(RuntimeSessionTaskOutcome::Interrupted)
+    );
+    assert_eq!(interrupted.load(Ordering::SeqCst), 1);
+
+    let replacement_count = Arc::new(AtomicUsize::new(0));
+    let replacement_count_for_task = Arc::clone(&replacement_count);
+    let first = RuntimeSessionClosureTask::new(
+        "turn-replace-callback",
+        Vec::new(),
+        |_context, _input, cancellation_token| {
+            Box::pin(async move {
+                cancellation_token.cancelled().await;
+                Ok(())
+            })
+        },
+    )
+    .with_interrupt(move |_context| {
+        let replacement_count = Arc::clone(&replacement_count_for_task);
+        Box::pin(async move {
+            replacement_count.fetch_add(1, Ordering::SeqCst);
+        })
+    });
+    let first_submission = session
+        .submit(Arc::new(first), false)
+        .await
+        .expect("submit replacement callback task");
+    let second = RuntimeSessionClosureTask::new(
+        "turn-replacement-next",
+        Vec::new(),
+        |_context, _input, _cancellation_token| Box::pin(async { Ok(()) }),
+    )
+    .with_kind(RuntimeSessionTaskKind::Review);
+    let result = session
+        .dispatch(RuntimeSessionOperationSubmission::new(
+            RuntimeSessionOperation::Review {
+                task: Arc::new(second),
+            },
+        ))
+        .await
+        .expect("replace active task");
+    assert!(matches!(
+        result,
+        RuntimeSessionOperationResult::Submission(_)
+    ));
+    assert_eq!(
+        first_submission
+            .completion
+            .await
+            .expect("replacement completion"),
+        Ok(RuntimeSessionTaskOutcome::Replaced)
+    );
+    assert_eq!(replacement_count.load(Ordering::SeqCst), 0);
+    session.shutdown().await.expect("shutdown");
+}
+
+#[tokio::test]
 async fn shell_operation_attaches_to_the_active_turn_and_shares_cancellation() {
     let registry = RuntimeSessionRegistry::default();
     let session = actor(&registry, "session-shell-active").await;

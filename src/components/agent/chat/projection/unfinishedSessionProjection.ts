@@ -1,6 +1,6 @@
 import type { AgentSessionInfo } from "@/lib/api/agentRuntime/sessionTypes";
 import {
-  hasRunningSessionOverviewActivity,
+  hasRunningSessionReadActivity,
   type ThreadReadActivityOptions,
 } from "./threadReadActivity";
 
@@ -29,7 +29,10 @@ const TERMINAL_THREAD_STATUSES = new Set([
 ]);
 
 function normalizeRuntimeStatus(value?: string | null): string | null {
-  const normalized = value?.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const normalized = value
+    ?.trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
   if (!normalized) {
     return null;
   }
@@ -71,7 +74,10 @@ function resolveUnfinishedStatus(
     return null;
   }
 
-  if (threadStatus === "waitingAction" || latestTurnStatus === "waitingAction") {
+  if (
+    threadStatus === "waitingAction" ||
+    latestTurnStatus === "waitingAction"
+  ) {
     return "waitingAction";
   }
 
@@ -88,7 +94,7 @@ function resolveUnfinishedStatus(
     return "queued";
   }
 
-  if (hasRunningSessionOverviewActivity(session, options)) {
+  if (hasRunningSessionReadActivity(session, options)) {
     return "running";
   }
 

@@ -487,13 +487,6 @@ function assertI18nKeyTypes() {
     hint: "research result",
   });
   i18n.t("skills.scaffoldDialog.validation.directory", { ns: "agent" });
-  i18n.t("agentChat.sessionOverview.panel.title", { ns: "agent" });
-  i18n.t("agentChat.sessionOverview.status.turn.running", { ns: "agent" });
-  i18n.t("agentChat.sessionOverview.timeline.empty", { ns: "agent" });
-  i18n.t("agentChat.sessionOverview.metrics.inProgress", {
-    ns: "agent",
-    countLabel: "2",
-  });
   i18n.t("agentChat.imageWorkbenchPreview.media.alt", { ns: "agent" });
   i18n.t("agentChat.imageWorkbenchPreview.media.open", { ns: "agent" });
   i18n.t("agentChat.imageWorkbenchPreview.action.retry", { ns: "agent" });

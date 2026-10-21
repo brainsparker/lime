@@ -2,6 +2,7 @@
   "$defs": {
     "HookEventName": {
       "enum": [
+        "interrupt",
         "permissionRequest",
         "postCompact",
         "postToolUse",

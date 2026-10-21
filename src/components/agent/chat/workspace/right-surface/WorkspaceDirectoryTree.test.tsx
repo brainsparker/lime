@@ -79,6 +79,47 @@ async function press(
 }
 
 describe("共享目录树键盘", () => {
+  it("键盘折叠不丢失首个文件身份，后续加选仍打开折叠前的文件", async () => {
+    function Probe() {
+      const [expanded, setExpanded] = useState<Record<string, boolean>>({
+        "/work/src": true,
+      });
+      return (
+        <WorkspaceDirectoryTree
+          directoryPath="/work"
+          state={state}
+          expandedDirectories={expanded}
+          selectedPath="/work/src/one.ts"
+          onSelectFile={select}
+          onToggleDirectory={(path) =>
+            setExpanded((previous) => ({
+              ...previous,
+              [path]: !previous[path],
+            }))
+          }
+        />
+      );
+    }
+    await act(async () => root.render(<Probe />));
+    await act(async () => row("src").focus());
+    await press("ArrowLeft");
+    expect(row("src/one.ts")).toBeUndefined();
+    expect(select).not.toHaveBeenCalled();
+    await act(async () =>
+      row("a.ts").dispatchEvent(
+        new MouseEvent("click", { bubbles: true, metaKey: true }),
+      ),
+    );
+    expect(select).toHaveBeenCalledExactlyOnceWith("/work/src/one.ts", {
+      isPreview: true,
+    });
+    expect(row("a.ts").getAttribute("aria-selected")).toBe("true");
+    await press("ArrowUp");
+    await press("ArrowRight");
+    expect(row("src/one.ts").getAttribute("aria-selected")).toBe("true");
+    expect(select).toHaveBeenCalledTimes(1);
+  });
+
   it("sticky目录不重复暴露树项，点击沿canonical目录折叠并恢复焦点", async () => {
     function Probe() {
       const [expanded, setExpanded] = useState<Record<string, boolean>>({
@@ -413,19 +454,13 @@ describe("共享目录树键盘", () => {
     expect(document.activeElement).toBe(row("z.ts"));
   });
 
-  it("输入法/组合键和原生按钮激活保留给原事件 owner", async () => {
+  it("输入法和原生按钮激活保留给原事件 owner", async () => {
     await render();
     await act(async () => row("a.ts").focus());
-    for (const options of [
-      { isComposing: true },
-      { shiftKey: true },
-      { metaKey: true },
-      { ctrlKey: true },
-      { altKey: true },
-    ]) {
-      expect((await press("ArrowDown", options)).defaultPrevented).toBe(false);
-      expect(document.activeElement).toBe(row("a.ts"));
-    }
+    expect(
+      (await press("ArrowDown", { isComposing: true })).defaultPrevented,
+    ).toBe(false);
+    expect(document.activeElement).toBe(row("a.ts"));
     expect((await press("Enter")).defaultPrevented).toBe(false);
     expect((await press(" ")).defaultPrevented).toBe(false);
     await act(async () => row("a.ts").click());

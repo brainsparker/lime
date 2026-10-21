@@ -172,6 +172,50 @@ async fn start_turn_injects_workspace_memory_summary_context() {
 }
 
 #[tokio::test]
+async fn start_turn_falls_back_to_global_memory_when_workspace_summary_is_missing() {
+    let data_source = Arc::new(
+        TestSessionDataSource::new().with_memory_store_read_sequence(vec![
+            Err("workspace summary missing".to_string()),
+            Ok(read_response(
+                "Global memory survives workspace cleanup.\n",
+                false,
+            )),
+        ]),
+    );
+    let runtime_options = Some(RuntimeOptions {
+        runtime_request: Some(RuntimeRequest {
+            workspace_root: Some("/tmp/workspace-memory".to_string()),
+            ..RuntimeRequest::default()
+        }),
+        ..RuntimeOptions::default()
+    });
+
+    let backend = start_memory_prompt_turn(data_source.clone(), runtime_options).await;
+    let requests = backend
+        .requests
+        .lock()
+        .expect("test backend requests mutex poisoned");
+    let metadata = requests[0]
+        .runtime_options
+        .as_ref()
+        .and_then(app_server_protocol::RuntimeOptions::runtime_metadata)
+        .expect("runtime metadata");
+    let context = metadata
+        .get(MEMORY_PROMPT_CONTEXT_KEY)
+        .expect("global fallback memory context");
+    assert_eq!(context["scope"].as_str(), Some("global"));
+    assert_eq!(
+        context["content"].as_str(),
+        Some("Global memory survives workspace cleanup.")
+    );
+
+    let read_requests = data_source.memory_store_read_requests();
+    assert_eq!(read_requests.len(), 2);
+    assert_eq!(read_requests[0].root.scope, MemoryStoreScope::Workspace);
+    assert_eq!(read_requests[1].root.scope, MemoryStoreScope::Global);
+}
+
+#[tokio::test]
 async fn start_turn_skips_empty_memory_summary() {
     let data_source = Arc::new(
         TestSessionDataSource::new()

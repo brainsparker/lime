@@ -73,6 +73,8 @@ interface BrowserWorkspaceProps {
   active?: boolean;
   ensureOwner?: () => Promise<BrowserWorkspaceOwner | null>;
   initialUrl?: string | null;
+  launchRequestId?: string | null;
+  onLaunchApplied?: (requestId: string) => void;
   runtimeSessionId?: string | null;
   threadId: string;
   onNavigate?: (url: string, title?: string | null) => void;
@@ -85,6 +87,8 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
   active = true,
   ensureOwner,
   initialUrl,
+  launchRequestId,
+  onLaunchApplied,
   runtimeSessionId,
   threadId,
   onNavigate,
@@ -105,6 +109,7 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
   const selectedRef = useRef<BrowserTabState | null>(null);
   const activeRef = useRef(active);
   const lastNavigationRef = useRef("");
+  const appliedLaunchRef = useRef("");
   const [address, setAddress] = useState(
     resolveBrowserAddressValue(resolvedInitialUrl),
   );
@@ -182,6 +187,41 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
     },
     [acceptState, isCurrent, reportHostError],
   );
+
+  useEffect(() => {
+    if (!active || !launchRequestId || !owner || !selected || !isCurrent())
+      return;
+    const key = `${owner.runtimeSessionId}\u0000${owner.threadId}\u0000${launchRequestId}`;
+    if (appliedLaunchRef.current === key) return;
+    appliedLaunchRef.current = key;
+    if (selected.url === resolvedInitialUrl) {
+      onLaunchApplied?.(launchRequestId);
+      return;
+    }
+    void navigateBrowserTab(selected.tabId, resolvedInitialUrl).then(
+      (state) => {
+        if (isCurrent() && appliedLaunchRef.current === key) {
+          acceptState(state);
+          onLaunchApplied?.(launchRequestId);
+          setError((current) => (current?.source === "host" ? null : current));
+        }
+      },
+      (reason: unknown) => {
+        if (isCurrent() && appliedLaunchRef.current === key)
+          reportHostError(reason);
+      },
+    );
+  }, [
+    active,
+    launchRequestId,
+    owner,
+    selected,
+    resolvedInitialUrl,
+    isCurrent,
+    acceptState,
+    reportHostError,
+    onLaunchApplied,
+  ]);
 
   const syncBounds = useCallback(
     async (force = false) => {

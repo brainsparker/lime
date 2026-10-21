@@ -55,6 +55,7 @@ mod mcp;
 mod media_task_read_model;
 mod media_tasks;
 mod memory;
+mod memory_agent;
 pub(crate) mod memory_prompt;
 mod model_providers;
 mod output_media;
@@ -359,6 +360,7 @@ pub(in crate::runtime) struct RuntimeCoreState {
     pub(in crate::runtime) browser_workspaces:
         HashMap<String, right_surface::BrowserWorkspaceIdentityRecord>,
     pub(in crate::runtime) sessions: HashMap<String, StoredSession>,
+    internal_agents: HashMap<String, tool_runtime::internal_agent::InternalAgentPolicy>,
     closing_sessions: HashSet<String>,
     shutting_down: bool,
     pub(in crate::runtime) thread_elicitation_counts: HashMap<String, i64>,

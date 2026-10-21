@@ -65,6 +65,26 @@ impl RuntimeApplyPatchExecutor {
         }
 
         let patch = patch_text_from_params(request.params)?;
+        if let Some(policy) = request
+            .context
+            .execution_attempt()
+            .and_then(|attempt| attempt.internal_agent_policy())
+        {
+            let result = crate::filesystem_helper::apply_patch(
+                &patch,
+                policy,
+                request.context.cancel_token(),
+            )
+            .await
+            .map_err(runtime_apply_patch_error)?;
+            return Ok(RuntimeToolExecutionResult::new(
+                true,
+                result["output"].as_str().unwrap_or_default().to_string(),
+                None,
+                serde_json::from_value(result["metadata"].clone())
+                    .map_err(|error| runtime_apply_patch_error(error.to_string()))?,
+            ));
+        }
         if let Some(environment_id) = request
             .context
             .environment_id()
@@ -138,6 +158,27 @@ impl RuntimeApplyPatchExecutor {
             build_metadata(&patch, &canonical_workdir, &report),
         ))
     }
+}
+
+pub(crate) fn apply_in_helper(
+    patch: &str,
+    cwd: &Path,
+    unrestricted: bool,
+) -> Result<Value, String> {
+    let cwd = cwd.canonicalize().map_err(|e| e.to_string())?;
+    let report = if unrestricted {
+        let parsed = parse_patch(patch).map_err(|e| e.to_string())?;
+        let hunks =
+            resolve_hunks_for_apply(&parsed.hunks, &cwd).map_err(|e| e.message().to_string())?;
+        apply_hunks_to_workdir(
+            &hunks,
+            filesystem_root(&cwd).map_err(|e| e.message().to_string())?,
+        )
+    } else {
+        apply_patch_to_workdir(patch, &cwd)
+    }
+    .map_err(|e| e.to_string())?;
+    Ok(json!({ "output": summary_text(&report), "metadata": build_metadata(patch, &cwd, &report) }))
 }
 
 impl RuntimeToolExecutor for RuntimeApplyPatchExecutor {

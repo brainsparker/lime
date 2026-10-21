@@ -1,0 +1,336 @@
+{
+  "schemaVersion": 1,
+  "version": "1.165.0",
+  "status": "candidate-to-quality",
+  "scope": "All candidates frozen by user; later edits deferred to next release",
+  "checks": [
+    {
+      "command": "npm run verify:app-version",
+      "exitCode": 0,
+      "log": "/tmp/lime-v11650-version.log"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "passed",
+      "log": "/tmp/lime-v11650-typecheck.log",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run test:contracts",
+      "status": "passed",
+      "protocolTypesNoDrift": true,
+      "log": "/tmp/lime-v11650-contracts.log",
+      "exitCode": 0
+    },
+    {
+      "command": "npm test -- <33 changed frontend test files> --maxWorkers 1 --minWorkers 1 --no-file-parallelism",
+      "status": "failed-original-run-preserved",
+      "log": "/tmp/lime-v11650-frontend.log",
+      "exitCode": 1,
+      "passed": 588,
+      "failed": 2,
+      "total": 590
+    },
+    {
+      "command": "npm run verify:gui-smoke",
+      "status": "passed",
+      "log": "/tmp/lime-v11650-gui-smoke.log",
+      "exitCode": 0,
+      "passed": 24,
+      "summary": "gui-smoke-summary.json",
+      "level": "real Electron/preload/IPC/current App Server shell Gate B"
+    },
+    {
+      "command": "git diff --check -- <source and documentation pathspecs>",
+      "exitCode": 0,
+      "log": "/tmp/lime-v11650-whitespace.log"
+    },
+    {
+      "command": "AI commit-hook preflight with explicit candidate files",
+      "exitCode": 0,
+      "passed": 349,
+      "failed": 0,
+      "log": "/tmp/lime-v11650-hook-preflight.log"
+    },
+    {
+      "command": "Vitest for seven changed script test files and one Node test file",
+      "exitCode": 1,
+      "vitestPassed": 137,
+      "failedSuite": "packages/agent-runtime-projection/tests/projection.test.mjs",
+      "reason": "Release invocation included a node:test suite in Vitest. Correct package-native runner started; no source edit needed.",
+      "log": "/tmp/lime-v11650-script-tests.log"
+    },
+    {
+      "command": "npm --prefix packages/agent-runtime-projection test",
+      "status": "passed",
+      "log": "/tmp/lime-v11650-projection.log",
+      "exitCode": 0,
+      "passed": 288
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server -p lime-agent -p tool-runtime -p agent-runtime memory_",
+      "status": "failed-compile",
+      "log": "/tmp/lime-v11650-memory-rust.log",
+      "exitCode": 101,
+      "reason": "Two redundant .await in new session_loop interruption regression; removed duplicate awaits only."
+    },
+    {
+      "command": "CanvasWorkbenchLayout.coding.test.tsx isolated unchanged rerun",
+      "status": "passed",
+      "reason": "One 5000ms timeout in initial 33-file run; preserve original budget and assertions.",
+      "log": "/tmp/lime-v11650-coding-isolated.log",
+      "exitCode": 0,
+      "passed": 8
+    },
+    {
+      "command": "ProfileHelp.component.test.tsx isolated unchanged rerun",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 9,
+      "log": "/tmp/lime-v11650-profile-isolated.log",
+      "qualification": "Original 5000ms timeout budget and assertions preserved."
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server -p lime-agent -p tool-runtime -p agent-runtime memory_ (after compile fix)",
+      "status": "superseded-see-r2-failure-and-r4-pass",
+      "log": "/tmp/lime-v11650-memory-rust-r2.log"
+    },
+    {
+      "command": "npm run smoke:agent-runtime-current-fixture",
+      "status": "failed",
+      "preflightPassed": 371,
+      "log": "/tmp/lime-v11650-current-fixture.log",
+      "exitCode": 1,
+      "businessAssertionsPassed": true,
+      "reason": "unknown-item normal Main exit timed out at existing 15000ms; failed process reaped after failure",
+      "summary": "agent-unknown-item-first-failure.json",
+      "unexecuted": "all later Electron scenarios"
+    },
+    {
+      "command": "Unknown Item isolated unchanged Electron rerun",
+      "status": "passed",
+      "exitCode": 0,
+      "businessAssertionsPassed": true,
+      "normalMainExit": {
+        "exitCode": 0,
+        "signal": null
+      },
+      "forcedCleanup": null,
+      "summary": "agent-unknown-item-r2.json",
+      "log": "/tmp/lime-v11650-unknown-r2.log"
+    },
+    {
+      "command": "npm run smoke:agent-runtime-current-fixture (second aggregate)",
+      "status": "failed",
+      "log": "/tmp/lime-v11650-current-fixture-r2.log",
+      "exitCode": 1,
+      "reason": "Rich draft Stop missing backend cancel ledger; unchanged isolated rerun passes",
+      "summary": "agent-rich-draft-first-failure.json"
+    },
+    {
+      "command": "Memory four-crate regression r2",
+      "exitCode": 101,
+      "passed": 91,
+      "failed": 2,
+      "reason": "New usage fixtures used tilde expansion rejected by current parser",
+      "log": "/tmp/lime-v11650-memory-rust-r2.log"
+    },
+    {
+      "command": "Memory four-crate regression r3",
+      "exitCode": 101,
+      "passed": 92,
+      "failed": 1,
+      "reason": "Search metadata contains display basename only; cannot attribute full memory root",
+      "log": "/tmp/lime-v11650-memory-rust-r3.log"
+    },
+    {
+      "command": "Explicit interruption regression first run",
+      "exitCode": 101,
+      "reason": "Review task fixture missing typed Review kind; original assertions preserved",
+      "log": "/tmp/lime-v11650-rust-owner-final.log"
+    },
+    {
+      "command": "Memory four-crate, explicit interruption and canonical rollout final sequence",
+      "status": "partial-pass-then-cancelled",
+      "log": "/tmp/lime-v11650-rust-final-r4.log",
+      "memoryPassed": 93,
+      "interruptionPassed": 1,
+      "canonicalRollout": "Cancelled during superseded original-worktree compilation; no test result"
+    },
+    {
+      "command": "Rich draft isolated unchanged Electron rerun",
+      "status": "passed",
+      "exitCode": 0,
+      "summary": "agent-rich-draft-r2.json",
+      "log": "/tmp/lime-v11650-rich-r2.log"
+    },
+    {
+      "command": "npm run smoke:agent-runtime-current-fixture (third aggregate)",
+      "status": "failed-input-drift",
+      "log": "/tmp/lime-v11650-current-fixture-r3.log",
+      "exitCode": 1,
+      "reason": "Renderer build inputs changed during compilation; rerun in an isolated frozen snapshot"
+    },
+    {
+      "command": "Memory four-crate regression r4",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 93,
+      "log": "/tmp/lime-v11650-rust-final-r4.log"
+    },
+    {
+      "command": "Explicit interruption regression r4",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 1,
+      "log": "/tmp/lime-v11650-rust-final-r4.log"
+    },
+    {
+      "command": "AI commit-hook preflight on frozen candidate",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 421,
+      "log": "/tmp/lime-v11650-frozen-hook-preflight.log"
+    },
+    {
+      "command": "Frozen snapshot verify:app-version/typecheck/test:contracts/build-input tests",
+      "status": "running",
+      "log": "/tmp/lime-v11650-frozen-static.log"
+    },
+    {
+      "command": "Frozen snapshot Desktop config/canonical_rollout/config_jsonrpc/thread_fork_jsonrpc",
+      "status": "running",
+      "log": "/tmp/lime-v11650-frozen-rust.log"
+    },
+    {
+      "command": "Frozen snapshot smoke:agent-runtime-current-fixture",
+      "status": "failed-build-lock-wait",
+      "preflightPassed": 371,
+      "log": "/tmp/lime-v11650-frozen-current-fixture.log",
+      "exitCode": 1,
+      "reason": "Concurrent release-owned GUI build held renderer lock beyond existing 20-minute wait; 371 preflight tests passed, no business scenario launched. Rerun sequentially after the build completes."
+    },
+    {
+      "command": "Frozen snapshot verify:gui-smoke",
+      "status": "running",
+      "log": "/tmp/lime-v11650-frozen-gui-smoke.log"
+    },
+    {
+      "command": "Frozen snapshot npm run typecheck",
+      "status": "passed",
+      "exitCode": 0,
+      "seconds": 1363.29,
+      "log": "/tmp/lime-v11650-frozen-static.log"
+    },
+    {
+      "command": "Frozen candidate scoped ESLint",
+      "status": "passed",
+      "exitCode": 0,
+      "files": 119,
+      "warnings": 0,
+      "log": "/tmp/lime-v11650-frozen-scoped-lint.log"
+    },
+    {
+      "command": "Frozen contracts initial run",
+      "status": "failed-environment",
+      "exitCode": 1,
+      "reason": "Exported snapshot lacked Git context for git ls-files in scripts governance. Protocol/client/command/harness/modality passed; private-index rerun started.",
+      "log": "/tmp/lime-v11650-frozen-static.log"
+    },
+    {
+      "command": "Frozen contracts with private Git index and build-input Node tests",
+      "status": "running",
+      "log": "/tmp/lime-v11650-frozen-contracts-r2.log"
+    },
+    {
+      "command": "Frozen snapshot npm run test:contracts with private Git context",
+      "status": "passed",
+      "exitCode": 0,
+      "seconds": 179.53,
+      "log": "/tmp/lime-v11650-frozen-contracts-r2.log"
+    },
+    {
+      "command": "Build-input tests invoked with Node runner",
+      "status": "failed-invocation",
+      "exitCode": 1,
+      "reason": "These files import Vitest; corrected to their native Vitest runner without source changes.",
+      "log": "/tmp/lime-v11650-frozen-contracts-r2.log"
+    },
+    {
+      "command": "Build-input tests with Vitest",
+      "status": "running",
+      "log": "/tmp/lime-v11650-frozen-build-input-vitest.log"
+    }
+  ],
+  "existingEvidence": [
+    {
+      "manifest": "../codex-rollout-context-20261021/implementation-freeze.json",
+      "frozenFiles": 40,
+      "sourceDigestDrift": [],
+      "publicJsonRpcTests": 54,
+      "providerTests": 181,
+      "qualification": "Existing owner evidence; version-only Cargo changes were made after those tests; not live or packaged evidence."
+    },
+    {
+      "manifest": "../codex-memory-agent-harness-20261020/memory-agent-source-freeze.json",
+      "frozenFiles": 61,
+      "driftedFiles": 22,
+      "qualification": "Historical snapshot differs from current sources. Do not count its results as fresh full-candidate validation."
+    }
+  ],
+  "classification": {
+    "current": [
+      "Electron/Forge",
+      "App Server JSON-RPC",
+      "RuntimeCore",
+      "canonical Thread/Turn/Item"
+    ],
+    "compat": [],
+    "deprecated": [],
+    "deleted": [
+      "phase2 direct sampling/proposal parser",
+      "duplicate usage conversion",
+      "old rollout schema readers"
+    ]
+  },
+  "publication": {
+    "committed": false,
+    "tagged": false,
+    "pushed": false,
+    "remoteTagExists": false,
+    "checkpoint": "Before first candidate commit; final publication receipt follows Quality and Release"
+  },
+  "limitations": [
+    "Complete Codex and Memory roadmap acceptance remains open.",
+    "Cross-platform/package channels are not validated by local source tests.",
+    "Memory search usage attribution is not claimed: shared parser projects display-only search paths; literal read attribution is covered."
+  ],
+  "candidateDriftObserved": [
+    "GUI and rollout owner documentation/evidence updated during release checks",
+    "scripts/app-server/cli-interrupt-gate-b.mjs updated by existing owner; inspect before final freeze"
+  ],
+  "environment": {
+    "observedLoadAverage": "31-64",
+    "memoryBytes": 17179869184,
+    "note": "Other live Cargo/TypeScript/renderer tasks are retained. No user process terminated; no test budgets or assertions changed."
+  },
+  "freeze": {
+    "version": "1.165.0",
+    "baseCommit": "e6176ddcb1dc77943a30b15f518130593a71fe44",
+    "frozenTree": "e5f736891fd729d6c9e5c85071d40c7933812aab",
+    "frozenAt": "2026-10-21T04:18:37.383850+00:00",
+    "snapshot": "/tmp/lime-v11650-frozen-e5f736891fd7",
+    "scope": "All candidates frozen after user instruction; later changes deferred",
+    "excluded": [
+      "tsconfig.node.tsbuildinfo"
+    ],
+    "stagedSummary": "452 files changed, 71620 insertions(+), 11923 deletions(-)"
+  },
+  "authorization": {
+    "userInstruction": "全部发布,不要找我确认,我去午休了",
+    "commitTagPushAuthorized": true,
+    "repeatConfirmationRequired": false,
+    "scope": "Frozen candidates only; later work remains deferred"
+  },
+  "recordedAt": "2026-10-21T04:49:49.034256+00:00"
+}

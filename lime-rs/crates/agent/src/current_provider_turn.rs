@@ -42,6 +42,7 @@ pub use command_publisher::CommandEventPublisher;
 mod dynamic_tool_bridge;
 mod environment;
 mod hook_step_snapshot;
+pub use hook_step_snapshot::run_interrupt_hooks;
 #[cfg(test)]
 mod input_tests;
 mod mcp_step_snapshot;
@@ -146,17 +147,21 @@ where
             experimental_request_user_input_enabled: session_config
                 .experimental_request_user_input_enabled,
         },
+        session_config.internal_agent_policy.clone(),
     );
     let mut lifecycle_emitter = CurrentTurnToolLifecycleEmitter::with_tool_routes(
         host_event_sender.clone(),
-        session_id,
-        thread_id,
+        session_id.clone(),
+        thread_id.clone(),
         mcp_tool_routes,
         dynamic_tool_routes,
     );
     lifecycle_emitter.command_publisher = command_publisher.clone();
     let lifecycle_emitter = Arc::new(lifecycle_emitter);
     let hook_snapshot_source = hook_step_snapshot::current_hook_step_snapshot_source(
+        state.clone(),
+        session_id.clone(),
+        thread_id.clone(),
         session_config.plugin_hook_source.clone(),
         working_directory.clone(),
         agent_event_sender.clone(),
@@ -248,6 +253,11 @@ struct CurrentProviderMidTurnCompactionCapability {
 }
 
 impl RuntimeMidTurnCompactionCapability for CurrentProviderMidTurnCompactionCapability {
+    fn should_compact(&self, usage: &model_provider::current_client::CurrentProviderUsage) -> bool {
+        self.token_limit
+            .is_some_and(|limit| u64::from(usage.input_tokens) >= limit)
+    }
+
     fn compact(
         &self,
         request: RuntimeMidTurnCompactionRequest,
@@ -578,7 +588,27 @@ fn handle_provider_event<F>(
                 on_event,
             );
         }
-        CurrentProviderTurnEvent::MidTurnCompaction { .. } => {}
+        CurrentProviderTurnEvent::MidTurnCompaction {
+            compaction_id,
+            context_epoch,
+            covered_through_sequence,
+            durable_event_id,
+        } => emit_with_artifacts(
+            artifact_events,
+            AgentEvent::ContextCompactionCompleted {
+                item_id: compaction_id,
+                trigger: "context_limit".to_string(),
+                detail: Some(
+                    serde_json::json!({
+                        "contextEpoch": context_epoch,
+                        "coveredThroughSequence": covered_through_sequence,
+                    })
+                    .to_string(),
+                ),
+                durable_event_id,
+            },
+            on_event,
+        ),
         CurrentProviderTurnEvent::HookPrompt { item } => {
             let mut started = item.clone();
             started.status = ItemStatus::InProgress;

@@ -510,6 +510,34 @@ fn canonical_rollout_uses_creation_date_and_survives_cross_day_restart() {
 }
 
 #[test]
+fn rollout_path_lookup_resolves_relative_and_absolute_codex_fork_sources() {
+    let (_temp, agent_root, store) = store_with_rollout();
+    let source = thread("path-fork-source", 1_700_000_000_000);
+    create(&store, &source);
+    let path = rollout_path(&store, &agent_root, &source.thread_id);
+    let relative = path
+        .strip_prefix(&agent_root)
+        .expect("rollout path is under agent root");
+
+    assert_eq!(
+        store
+            .thread_for_rollout_path_sync(relative)
+            .expect("relative path lookup")
+            .0
+            .thread_id,
+        source.thread_id.clone()
+    );
+    assert_eq!(
+        store
+            .thread_for_rollout_path_sync(&path)
+            .expect("absolute path lookup")
+            .0
+            .thread_id,
+        source.thread_id
+    );
+}
+
+#[test]
 fn rollout_append_is_idempotent_when_projection_commit_is_retried() {
     let (_temp, agent_root, store) = store_with_rollout();
     let source = thread("commit-retry", 1_700_000_000_000);

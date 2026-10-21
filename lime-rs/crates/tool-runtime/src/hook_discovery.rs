@@ -243,48 +243,123 @@ fn append_source_hooks(
                 }
             }
             for (handler_index, handler) in group.hooks.iter().cloned().enumerate() {
-                let HookHandlerConfig::Command {
+                let (
+                    handler_type,
+                    execution_mode,
                     command,
-                    command_windows,
+                    mcp_server,
+                    mcp_tool,
+                    mcp_input,
                     timeout_sec,
-                    r#async,
                     status_message,
                     additional_context_limit,
-                } = handler
-                else {
-                    warnings.push(format!(
-                        "skipping unsupported prompt/agent hook in {}",
-                        source.path.display()
-                    ));
-                    continue;
+                    current_hash,
+                ) = match handler {
+                    HookHandlerConfig::Command {
+                        command,
+                        command_windows,
+                        timeout_sec,
+                        r#async,
+                        status_message,
+                        additional_context_limit,
+                    } => {
+                        let command = selected_command(command, command_windows);
+                        if command.trim().is_empty() {
+                            warnings.push(format!(
+                                "skipping empty hook command in {}",
+                                source.path.display()
+                            ));
+                            continue;
+                        }
+                        let timeout_sec =
+                            normalize_timeout(event_name, timeout_sec, &source.path, warnings);
+                        let additional_context_limit = normalize_additional_context_limit(
+                            event_name,
+                            additional_context_limit,
+                            &source.path,
+                            warnings,
+                        );
+                        let normalized_limit = additional_context_limit
+                            .filter(|limit| *limit != DEFAULT_ADDITIONAL_CONTEXT_LIMIT);
+                        let current_hash = command_hook_hash(
+                            event_name,
+                            matcher.as_deref(),
+                            &command,
+                            timeout_sec,
+                            r#async,
+                            status_message.as_deref(),
+                            normalized_limit,
+                        );
+                        (
+                            RuntimeHookHandlerType::Command,
+                            if r#async {
+                                RuntimeHookExecutionMode::Async
+                            } else {
+                                RuntimeHookExecutionMode::Sync
+                            },
+                            Some(command),
+                            None,
+                            None,
+                            None,
+                            timeout_sec,
+                            status_message,
+                            additional_context_limit,
+                            current_hash,
+                        )
+                    }
+                    HookHandlerConfig::McpTool {
+                        server,
+                        tool,
+                        input,
+                        timeout_sec,
+                        status_message,
+                    } => {
+                        if server.trim().is_empty() || tool.trim().is_empty() {
+                            warnings.push(format!(
+                                "skipping MCP hook with empty server/tool in {}",
+                                source.path.display()
+                            ));
+                            continue;
+                        }
+                        if event_name == RuntimeHookEventName::SessionEnd {
+                            warnings.push(format!(
+                                "skipping MCP hook for SessionEnd in {}",
+                                source.path.display()
+                            ));
+                            continue;
+                        }
+                        let timeout_sec =
+                            normalize_timeout(event_name, timeout_sec, &source.path, warnings);
+                        let current_hash = mcp_hook_hash(
+                            event_name,
+                            matcher.as_deref(),
+                            &server,
+                            &tool,
+                            &input,
+                            timeout_sec,
+                            status_message.as_deref(),
+                        );
+                        (
+                            RuntimeHookHandlerType::McpTool,
+                            RuntimeHookExecutionMode::Sync,
+                            None,
+                            Some(server),
+                            Some(tool),
+                            Some(serde_json::Value::Object(input)),
+                            timeout_sec,
+                            status_message,
+                            None,
+                            current_hash,
+                        )
+                    }
+                    HookHandlerConfig::Prompt {} | HookHandlerConfig::Agent {} => {
+                        warnings.push(format!(
+                            "skipping unsupported prompt/agent hook in {}",
+                            source.path.display()
+                        ));
+                        continue;
+                    }
                 };
-                let command = selected_command(command, command_windows);
-                if command.trim().is_empty() {
-                    warnings.push(format!(
-                        "skipping empty hook command in {}",
-                        source.path.display()
-                    ));
-                    continue;
-                }
-                let timeout_sec =
-                    normalize_timeout(event_name, timeout_sec, &source.path, warnings);
-                let additional_context_limit = normalize_additional_context_limit(
-                    event_name,
-                    additional_context_limit,
-                    &source.path,
-                    warnings,
-                );
-                let normalized_limit = additional_context_limit
-                    .filter(|limit| *limit != DEFAULT_ADDITIONAL_CONTEXT_LIMIT);
-                let current_hash = command_hook_hash(
-                    event_name,
-                    matcher.as_deref(),
-                    &command,
-                    timeout_sec,
-                    r#async,
-                    status_message.as_deref(),
-                    normalized_limit,
-                );
                 let key = format!(
                     "{}:{}:{group_index}:{handler_index}",
                     source.key_source,
@@ -315,14 +390,13 @@ fn append_source_hooks(
                     snapshot: RuntimeHookSnapshot {
                         key,
                         event_name,
-                        handler_type: RuntimeHookHandlerType::Command,
-                        execution_mode: if r#async {
-                            RuntimeHookExecutionMode::Async
-                        } else {
-                            RuntimeHookExecutionMode::Sync
-                        },
+                        handler_type,
+                        execution_mode,
                         matcher: matcher.clone(),
-                        command: Some(command),
+                        command,
+                        mcp_server,
+                        mcp_tool,
+                        mcp_input,
                         timeout_sec,
                         status_message,
                         additional_context_limit,
@@ -453,6 +527,44 @@ fn command_hook_hash(
     }
     if let Some(limit) = additional_context_limit {
         handler.insert("additionalContextLimit".to_string(), Value::from(limit));
+    }
+    let mut identity = serde_json::Map::new();
+    identity.insert(
+        "event_name".to_string(),
+        Value::String(event_name.key_label().to_string()),
+    );
+    if let Some(matcher) = matcher {
+        identity.insert("matcher".to_string(), Value::String(matcher.to_string()));
+    }
+    identity.insert(
+        "hooks".to_string(),
+        Value::Array(vec![Value::Object(handler)]),
+    );
+    let canonical = canonical_json(&Value::Object(identity));
+    let serialized = serde_json::to_vec(&canonical).unwrap_or_default();
+    format!("sha256:{}", hex::encode(Sha256::digest(serialized)))
+}
+
+fn mcp_hook_hash(
+    event_name: RuntimeHookEventName,
+    matcher: Option<&str>,
+    server: &str,
+    tool: &str,
+    input: &serde_json::Map<String, serde_json::Value>,
+    timeout_sec: u64,
+    status_message: Option<&str>,
+) -> String {
+    let mut handler = serde_json::Map::new();
+    handler.insert("type".to_string(), Value::String("mcp_tool".to_string()));
+    handler.insert("server".to_string(), Value::String(server.to_string()));
+    handler.insert("tool".to_string(), Value::String(tool.to_string()));
+    handler.insert("input".to_string(), Value::Object(input.clone()));
+    handler.insert("timeout".to_string(), Value::from(timeout_sec));
+    if let Some(status_message) = status_message {
+        handler.insert(
+            "statusMessage".to_string(),
+            Value::String(status_message.to_string()),
+        );
     }
     let mut identity = serde_json::Map::new();
     identity.insert(

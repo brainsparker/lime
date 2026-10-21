@@ -5,11 +5,7 @@ mod policy_config;
 mod web_search_execution_tracker;
 
 pub use self::current_reply_adapter::stream_reply_with_policy;
-pub(crate) use self::current_reply_adapter::{
-    stream_runtime_message_reply_with_policy,
-    stream_runtime_reply_with_configured_provider_for_direct_generation,
-    stream_runtime_reply_with_policy,
-};
+pub(crate) use self::current_reply_adapter::stream_runtime_message_reply_with_policy;
 pub(crate) use self::policy_config::is_same_tool;
 pub use self::policy_config::{
     merge_system_prompt_with_request_tool_policy,

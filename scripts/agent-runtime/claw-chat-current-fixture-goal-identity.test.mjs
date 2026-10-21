@@ -9,7 +9,15 @@ function fixture() {
     summary: {
       sessionId: "session-goal",
       threadId: "thread-goal",
-      goalInputSend: { clicked: { sessionId: "session-goal" } },
+      goalInputSend: {
+        before: { editorSessionId: null },
+        clicked: { clicked: true, sessionId: null },
+      },
+      goalFirstTurn: {
+        sessionId: "session-goal",
+        threadId: "thread-goal",
+        turnId: "turn-user",
+      },
       guiGoalCompleted: {
         completionScope: {
           runtimeTurnId: "turn-user",
@@ -58,6 +66,11 @@ describe("Goal user turn Gate B identity", () => {
     "foreign-assistant",
     "pending",
     "foreign-session",
+    "foreign-thread",
+    "foreign-user-turn",
+    "preexisting-thread",
+    "missing-first-turn",
+    "missing-click",
     "missing-backend",
     "foreign-read-model",
   ])("rejects %s instead of falling back to another turn", (mutation) => {
@@ -71,7 +84,16 @@ describe("Goal user turn Gate B identity", () => {
       input.summary.guiGoalCompleted.completionScope.runtimeTurnStatus =
         "running";
     if (mutation === "foreign-session")
-      input.summary.goalInputSend.clicked.sessionId = "session-other";
+      input.summary.goalFirstTurn.sessionId = "session-other";
+    if (mutation === "foreign-thread")
+      input.summary.goalFirstTurn.threadId = "thread-other";
+    if (mutation === "foreign-user-turn")
+      input.summary.goalFirstTurn.turnId = "turn-automatic";
+    if (mutation === "preexisting-thread")
+      input.summary.goalInputSend.before.editorSessionId = "session-goal";
+    if (mutation === "missing-first-turn") input.summary.goalFirstTurn = null;
+    if (mutation === "missing-click")
+      input.summary.goalInputSend.clicked.clicked = false;
     if (mutation === "missing-backend") input.backendLedger.shift();
     if (mutation === "foreign-read-model")
       input.appServerRequests[0].response.turns.shift();

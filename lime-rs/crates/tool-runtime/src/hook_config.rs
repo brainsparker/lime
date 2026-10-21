@@ -36,6 +36,8 @@ pub struct HookEventsConfig {
     subagent_stop: Vec<MatcherGroup>,
     #[serde(rename = "Stop", default)]
     stop: Vec<MatcherGroup>,
+    #[serde(rename = "Interrupt", default)]
+    interrupt: Vec<MatcherGroup>,
 }
 
 impl HookEventsConfig {
@@ -46,7 +48,7 @@ impl HookEventsConfig {
             .all(|(_, groups)| groups.is_empty())
     }
 
-    pub(crate) fn into_groups(self) -> [(RuntimeHookEventName, Vec<MatcherGroup>); 11] {
+    pub(crate) fn into_groups(self) -> [(RuntimeHookEventName, Vec<MatcherGroup>); 12] {
         [
             (RuntimeHookEventName::PreToolUse, self.pre_tool_use),
             (
@@ -65,6 +67,7 @@ impl HookEventsConfig {
             (RuntimeHookEventName::SubagentStart, self.subagent_start),
             (RuntimeHookEventName::SubagentStop, self.subagent_stop),
             (RuntimeHookEventName::Stop, self.stop),
+            (RuntimeHookEventName::Interrupt, self.interrupt),
         ]
     }
 }
@@ -113,6 +116,27 @@ pub(crate) enum HookHandlerConfig {
             skip_serializing_if = "Option::is_none"
         )]
         additional_context_limit: Option<usize>,
+    },
+    #[serde(rename = "mcp_tool")]
+    McpTool {
+        server: String,
+        tool: String,
+        #[serde(default)]
+        input: serde_json::Map<String, serde_json::Value>,
+        #[serde(
+            default,
+            rename = "timeout",
+            alias = "timeout_sec",
+            skip_serializing_if = "Option::is_none"
+        )]
+        timeout_sec: Option<u64>,
+        #[serde(
+            default,
+            rename = "statusMessage",
+            alias = "status_message",
+            skip_serializing_if = "Option::is_none"
+        )]
+        status_message: Option<String>,
     },
     #[serde(rename = "prompt")]
     Prompt {},

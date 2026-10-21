@@ -22,11 +22,10 @@ use tool_runtime::sandbox::SandboxBackendPlatform;
 mod model_defaults;
 mod settings;
 mod working_directory;
+pub(super) use settings::apply_thread_settings_patch;
 #[cfg(test)]
 use settings::persisted_collaboration_mode;
-use settings::{
-    apply_thread_settings_patch, thread_settings_from_metadata, validate_thread_settings,
-};
+use settings::{thread_settings_from_metadata, validate_thread_settings};
 
 #[derive(Clone)]
 enum SessionMetadataMutation {

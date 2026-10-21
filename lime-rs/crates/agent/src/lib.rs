@@ -41,7 +41,6 @@ mod runtime_state_support;
 mod session_configuration;
 mod session_execution_runtime;
 mod session_record_sql;
-mod session_usage_projection;
 pub mod skill_execution;
 pub mod tool_io_offload;
 pub mod tools;
@@ -52,6 +51,7 @@ pub mod turn_state;
 mod write_artifact_events;
 
 pub use context_compaction::run_context_compaction_with_db;
+pub use current_provider_turn::run_interrupt_hooks;
 pub use current_provider_turn::CommandEventPublisher;
 pub use direct_text_generation::{
     run_direct_text_generation_with_db, DirectTextGenerationRequest, DirectTextGenerationResult,

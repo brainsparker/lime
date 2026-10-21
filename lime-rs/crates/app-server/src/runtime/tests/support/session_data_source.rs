@@ -5,6 +5,7 @@ use async_trait::async_trait;
 pub(in crate::runtime::tests) struct TestSessionDataSource {
     workspace: Option<serde_json::Value>,
     memory_store_read_response: Mutex<Option<Result<MemoryStoreReadResponse, String>>>,
+    memory_store_read_sequence: Mutex<Vec<Result<MemoryStoreReadResponse, String>>>,
     memory_store_read_requests: Mutex<Vec<MemoryStoreReadParams>>,
     memory_backend: Option<crate::LocalMemoryBackend>,
     knowledge_compile_requests: Mutex<Vec<lime_knowledge::KnowledgeCompilePackRequest>>,
@@ -21,6 +22,7 @@ impl TestSessionDataSource {
         Self {
             workspace: None,
             memory_store_read_response: Mutex::new(None),
+            memory_store_read_sequence: Mutex::new(Vec::new()),
             memory_store_read_requests: Mutex::new(Vec::new()),
             memory_backend: None,
             knowledge_compile_requests: Mutex::new(Vec::new()),
@@ -48,6 +50,17 @@ impl TestSessionDataSource {
             .memory_store_read_response
             .lock()
             .expect("test memory response mutex poisoned") = Some(response);
+        self
+    }
+
+    pub(in crate::runtime::tests) fn with_memory_store_read_sequence(
+        self,
+        responses: Vec<Result<MemoryStoreReadResponse, String>>,
+    ) -> Self {
+        *self
+            .memory_store_read_sequence
+            .lock()
+            .expect("test memory response sequence mutex poisoned") = responses;
         self
     }
 
@@ -229,11 +242,20 @@ impl MemoryAppDataSource for TestSessionDataSource {
             .lock()
             .expect("test memory requests mutex poisoned")
             .push(params);
-        let response = self
-            .memory_store_read_response
-            .lock()
-            .expect("test memory response mutex poisoned")
-            .clone();
+        let response = {
+            let mut sequence = self
+                .memory_store_read_sequence
+                .lock()
+                .expect("test memory response sequence mutex poisoned");
+            if sequence.is_empty() {
+                self.memory_store_read_response
+                    .lock()
+                    .expect("test memory response mutex poisoned")
+                    .clone()
+            } else {
+                Some(sequence.remove(0))
+            }
+        };
         match response {
             Some(Ok(response)) => Ok(response),
             Some(Err(message)) => Err(RuntimeCoreError::Backend(message)),
@@ -259,7 +281,7 @@ impl MemoryAppDataSource for TestSessionDataSource {
         &self,
         params: MemoryStoreConsolidateParams,
         route: crate::MemoryStageOneRoute,
-        provider: &dyn crate::MemoryStageTwoProvider,
+        provider: &dyn crate::MemoryAgent,
     ) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError> {
         let Some(memory_backend) = &self.memory_backend else {
             return Err(RuntimeCoreError::Backend(

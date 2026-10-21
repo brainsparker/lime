@@ -69,6 +69,7 @@ export function createSearchFileTree(
   files: readonly ProjectFileSearchResult[],
 ) {
   const children = new Map<string, SearchTreeEntry>();
+  const filePaths = new Set<string>();
   const expandedDirectories: Record<string, boolean> = {};
   const seen = new Set<string>();
   for (const file of files) {
@@ -80,6 +81,7 @@ export function createSearchFileTree(
     const normalizedPath = absolutePath.replace(/\\/g, "/");
     if (seen.has(normalizedPath)) continue;
     seen.add(normalizedPath);
+    filePaths.add(absolutePath);
     const normalizedRoot = (file.root || root)
       .replace(/\\/g, "/")
       .replace(/\/+$/, "");
@@ -116,7 +118,7 @@ export function createSearchFileTree(
       parentPath = path;
     });
   }
-  return { root, children, expandedDirectories };
+  return { root, children, expandedDirectories, filePaths };
 }
 
 export function getSearchFileTreeRows(

@@ -36,6 +36,37 @@ impl RuntimeCoreState {
 }
 
 impl RuntimeCore {
+    pub(super) async fn shutdown_internal_session(
+        &self,
+        session_id: &str,
+    ) -> Result<(), RuntimeCoreError> {
+        loop {
+            let changed = self.session_shutdown_changed.notified();
+            tokio::pin!(changed);
+            changed.as_mut().enable();
+            let session = {
+                let mut state = self.state.lock().expect("runtime state");
+                let Some(stored) = state.sessions.get(session_id) else {
+                    return Ok(());
+                };
+                let session = stored.session.clone();
+                if !state.internal_agents.contains_key(session_id) {
+                    return Err(RuntimeCoreError::InvalidRequest(
+                        "session is not internal".to_string(),
+                    ));
+                }
+                state
+                    .closing_sessions
+                    .insert(session_id.to_string())
+                    .then_some(session)
+            };
+            if let Some(session) = session {
+                return self.shutdown_session_runtime(session).await;
+            }
+            changed.await;
+        }
+    }
+
     pub(crate) async fn unload_thread_if_idle(
         &self,
         thread_id: &str,
@@ -111,7 +142,7 @@ impl RuntimeCore {
         first_error.map_or(Ok(()), Err)
     }
 
-    async fn shutdown_session_runtime(
+    pub(super) async fn shutdown_session_runtime(
         &self,
         session: AgentSession,
     ) -> Result<(), RuntimeCoreError> {
@@ -163,6 +194,16 @@ impl RuntimeCore {
             .shutdown(&session.session_id)
             .await
             .map_err(|error| RuntimeCoreError::Backend(error.to_string()))?;
+        let internal = self
+            .state
+            .lock()
+            .expect("runtime core state mutex poisoned")
+            .internal_agents
+            .get(&session.session_id)
+            .cloned();
+        if let Some(policy) = internal {
+            policy.shutdown_filesystem().await;
+        }
         self.backend
             .close_session(&session.session_id, &session.thread_id)
             .await?;
@@ -171,6 +212,7 @@ impl RuntimeCore {
             .lock()
             .expect("runtime core state mutex poisoned");
         state.sessions.remove(&session.session_id);
+        state.internal_agents.remove(&session.session_id);
         state.thread_elicitation_counts.remove(&session.thread_id);
         state.thread_goal_continuations.remove(&session.session_id);
         Ok(())

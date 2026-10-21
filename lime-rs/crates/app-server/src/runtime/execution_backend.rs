@@ -87,28 +87,6 @@ pub trait ExecutionBackend: Send + Sync {
         ))
     }
 
-    async fn run_memory_stage2(
-        &self,
-        _root: app_server_protocol::MemoryStoreRootParams,
-        _route: crate::MemoryStageOneRoute,
-        _data_source: Arc<dyn AppDataSource>,
-    ) -> Result<crate::MemoryStageOneRunResult, RuntimeCoreError> {
-        Err(RuntimeCoreError::Backend(
-            "runtime backend does not support memory stage-2".to_string(),
-        ))
-    }
-
-    async fn consolidate_memory_store(
-        &self,
-        _params: app_server_protocol::MemoryStoreConsolidateParams,
-        _route: crate::MemoryStageOneRoute,
-        _data_source: Arc<dyn AppDataSource>,
-    ) -> Result<app_server_protocol::MemoryStoreConsolidateResponse, RuntimeCoreError> {
-        Err(RuntimeCoreError::Backend(
-            "runtime backend does not support provider-backed memory consolidation".to_string(),
-        ))
-    }
-
     /// Resolve the current session route before a background memory sampling job.
     ///
     /// Memory must use the same provider/model/protocol/readiness decision as a normal
@@ -152,6 +130,17 @@ pub trait ExecutionBackend: Send + Sync {
     ) -> Result<(), RuntimeCoreError> {
         self.start_turn_with_provider_history(request, provider_history, sink)
             .await
+    }
+
+    /// Run turn-scoped Interrupt hooks after the session actor has cancelled
+    /// the active task. Implementations that own the Codex-compatible runtime
+    /// may emit hook lifecycle events through the same sink used by the turn.
+    async fn run_interrupt_hooks(
+        &self,
+        _request: ExecutionRequest,
+        _sink: &mut dyn RuntimeEventSink,
+    ) -> Result<(), RuntimeCoreError> {
+        Ok(())
     }
 
     async fn cancel_turn(

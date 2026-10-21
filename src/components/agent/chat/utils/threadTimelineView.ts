@@ -26,10 +26,8 @@ export function compareThreadTurns(
   left: AgentThreadTurn,
   right: AgentThreadTurn,
 ): number {
-  if (left.started_at !== right.started_at) {
-    return compareStableString(left.started_at, right.started_at);
-  }
-  return compareStableString(left.id, right.id);
+  // 相同或缺失时间时沿用 canonical 输入顺序，ID 不代表回合先后。
+  return compareStableString(left.started_at, right.started_at);
 }
 
 export function compareThreadItems(

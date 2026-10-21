@@ -399,6 +399,9 @@ pub struct Config {
     /// TUI 客户端偏好；由 App Server `config/read` 暴露给终端 surface。
     #[serde(default, skip_serializing_if = "super::TuiConfig::is_default")]
     pub tui: super::TuiConfig,
+    /// Desktop 链接偏好；由同一 App Server 用户配置层持久化。
+    #[serde(default, skip_serializing_if = "super::DesktopConfig::is_default")]
+    pub desktop: super::DesktopConfig,
     /// 路由辅助配置
     #[serde(default)]
     pub routing: RoutingConfig,
@@ -2218,6 +2221,7 @@ impl Default for Config {
             default_permissions: None,
             permissions: BTreeMap::new(),
             tui: super::TuiConfig::default(),
+            desktop: super::DesktopConfig::default(),
             routing: RoutingConfig::default(),
             retry: RetrySettings::default(),
             logging: LoggingConfig::default(),

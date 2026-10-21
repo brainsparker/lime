@@ -1,7 +1,12 @@
 use super::{
     action_response, current_agent_runtime_config_metadata, initialize_runtime_database,
-    mcp_bridges, request_context::effective_runtime_options_for_turn, tool_inventory,
-    RuntimeBackend,
+    mcp_bridges, merge_route_model_metadata, plugin_hooks,
+    request_context::{
+        effective_runtime_options_for_turn, request_tool_policy_from_request,
+        runtime_request_from_request, session_config_from_request_with_plugins_and_orchestrator,
+        session_scope_from_request,
+    },
+    tool_events, tool_inventory, RuntimeBackend,
 };
 use crate::runtime::ToolInventoryReadRequest;
 use crate::{
@@ -46,39 +51,6 @@ impl crate::MemoryStageOneProvider for RuntimeBackend {
             "memory stage-1 route is missing provider or model",
         )
         .await
-    }
-}
-
-#[async_trait]
-impl crate::MemoryStageTwoProvider for RuntimeBackend {
-    async fn sample(
-        &self,
-        request: crate::MemoryStageTwoProviderRequest,
-    ) -> Result<String, RuntimeCoreError> {
-        let cancellation = request.cancellation;
-        let sample = sample_memory_stage(
-            self,
-            request.provider,
-            request.model,
-            request.reasoning_effort,
-            request.service_tier,
-            request.api_version,
-            request.route_protocol,
-            request.credential_ref,
-            request.cwd,
-            request.output_schema,
-            request.session_id,
-            request.thread_id,
-            request.turn_id,
-            request.system_prompt,
-            request.user_prompt,
-            "memory stage-2 route is missing provider or model",
-        );
-        tokio::select! {
-            biased;
-            _ = cancellation.cancelled() => Err(RuntimeCoreError::RequestCanceled),
-            result = sample => result,
-        }
     }
 }
 
@@ -181,6 +153,7 @@ pub(super) async fn preflight_thread_settings_route(
         command_publisher: None,
         rollout_budget_reminder_source: None,
         mid_turn_compaction_commit: None,
+        internal_agent_policy: None,
     };
     let route = backend.resolve_turn_route(&request).await?;
     if let Some(failure) = route.resolution.resolved_route.failure.as_ref() {
@@ -346,26 +319,6 @@ impl ExecutionBackend for RuntimeBackend {
             .await
     }
 
-    async fn run_memory_stage2(
-        &self,
-        root: app_server_protocol::MemoryStoreRootParams,
-        route: crate::MemoryStageOneRoute,
-        data_source: Arc<dyn AppDataSource>,
-    ) -> Result<crate::MemoryStageOneRunResult, RuntimeCoreError> {
-        data_source.run_memory_stage2(root, route, self).await
-    }
-
-    async fn consolidate_memory_store(
-        &self,
-        params: app_server_protocol::MemoryStoreConsolidateParams,
-        route: crate::MemoryStageOneRoute,
-        data_source: Arc<dyn AppDataSource>,
-    ) -> Result<app_server_protocol::MemoryStoreConsolidateResponse, RuntimeCoreError> {
-        data_source
-            .consolidate_memory_store(params, route, self)
-            .await
-    }
-
     async fn resolve_memory_stage1_route(
         &self,
         session: &app_server_protocol::AgentSession,
@@ -449,6 +402,7 @@ impl ExecutionBackend for RuntimeBackend {
             command_publisher: None,
             rollout_budget_reminder_source: None,
             mid_turn_compaction_commit: None,
+            internal_agent_policy: None,
         };
         let route = self.resolve_turn_route(&request).await?;
         if let Some(failure) = route.resolution.resolved_route.failure.as_ref() {
@@ -501,6 +455,90 @@ impl ExecutionBackend for RuntimeBackend {
             sink,
         )
         .await
+    }
+
+    async fn run_interrupt_hooks(
+        &self,
+        request: ExecutionRequest,
+        sink: &mut dyn RuntimeEventSink,
+    ) -> Result<(), RuntimeCoreError> {
+        let route = self.resolve_turn_route(&request).await?;
+        if let Some(failure) = route.resolution.resolved_route.failure.as_ref() {
+            tracing::warn!(
+                session_id = %request.session.session_id,
+                turn_id = %request.turn.turn_id,
+                ?failure,
+                "skipping Interrupt hooks because the turn route is unavailable"
+            );
+            return Ok(());
+        }
+        let db = initialize_runtime_database(self.db.as_ref())?;
+        self.ensure_agent_initialized(&db).await?;
+        let host_request = runtime_request_from_request(&request);
+        let scope = session_scope_from_request(&request)?;
+        let request_tool_policy = request_tool_policy_from_request(host_request.as_ref());
+        let mut session_config = session_config_from_request_with_plugins_and_orchestrator(
+            &request,
+            host_request.as_ref(),
+            &scope,
+            &route.selection,
+            &request_tool_policy,
+            merge_route_model_metadata(
+                current_agent_runtime_config_metadata(),
+                route.resolution.decision_payload.get("modelRegistry"),
+            ),
+            &[],
+            &[],
+        );
+        session_config.plugin_hook_source = if request.internal_agent_policy.is_some() {
+            None
+        } else {
+            plugin_hooks::source(self.current_app_data_source()?)
+        };
+        if request.internal_agent_policy.is_none() {
+            if let Err(error) = mcp_bridges::ensure_thread_mcp_runtime_if_available(
+                &self.agent_state,
+                &self.app_data_source,
+                &scope.session_id,
+                &scope.thread_id,
+            )
+            .await
+            {
+                tracing::warn!(
+                    session_id = %scope.session_id,
+                    thread_id = %scope.thread_id,
+                    %error,
+                    "MCP runtime unavailable while running Interrupt hooks"
+                );
+            }
+        }
+        let working_directory = session_config
+            .turn_context
+            .as_ref()
+            .and_then(|context| context.cwd.clone())
+            .or_else(|| {
+                host_request
+                    .as_ref()
+                    .and_then(|request| request.working_dir.as_deref())
+                    .map(std::path::PathBuf::from)
+            })
+            .unwrap_or_else(|| {
+                std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+            });
+        for event in lime_agent::run_interrupt_hooks(
+            self.agent_state.clone(),
+            &session_config,
+            working_directory,
+        )
+        .await
+        {
+            for runtime_event in
+                tool_events::runtime_events_from_agent_event_with_soul_style(&event, None)?
+            {
+                sink.emit(runtime_event)?;
+            }
+        }
+        Ok(())
     }
 
     async fn cancel_turn(

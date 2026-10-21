@@ -5,7 +5,6 @@ import {
   FolderOpen,
   GitCompare,
   Globe2,
-  ListChecks,
   Plus,
   TerminalSquare,
   X,
@@ -61,11 +60,8 @@ function resolveTabIcon(key: CanvasWorkbenchTab | CanvasWorkbenchNewToolTab) {
   if (key === "changes") {
     return <GitCompare className="h-3.5 w-3.5 shrink-0" />;
   }
-  if (key === "outputs" || toolTabKind === "terminal") {
+  if (key === "summary" || toolTabKind === "terminal") {
     return <TerminalSquare className="h-3.5 w-3.5 shrink-0" />;
-  }
-  if (key === "logs") {
-    return <ListChecks className="h-3.5 w-3.5 shrink-0" />;
   }
   if (key === "workspace" || toolTabKind === "project-files") {
     return <FolderOpen className="h-3.5 w-3.5 shrink-0" />;

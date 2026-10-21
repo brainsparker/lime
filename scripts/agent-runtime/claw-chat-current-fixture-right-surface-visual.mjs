@@ -4,6 +4,7 @@ import {
   createThreadSidePanelFileFixture,
 } from "../electron/lib/thread-side-panel-new-tab-scenario.mjs";
 import { selectThreadSidePanelTool } from "../electron/lib/thread-side-panel-navigation.mjs";
+import { withNativeClipboard } from "../electron/lib/native-clipboard.mjs";
 import { waitForPageCondition } from "../electron/mcp-config-fixture-smoke.mjs";
 import {
   APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_PENDING_LIST,
@@ -25,6 +26,7 @@ const RIGHT_SURFACE_ROOTS = {
 };
 
 export async function runRightSurfaceVisualMatrix({
+  app,
   page,
   options,
   workspace,
@@ -121,11 +123,21 @@ export async function runRightSurfaceVisualMatrix({
     });
   }
 
-  captures.newTabLifecycle = await collectThreadSidePanelNewTabEvidence(
-    page,
-    options,
-    workspace,
-    fileFixture,
+  captures.newTabLifecycle = await withNativeClipboard(app, () =>
+    collectThreadSidePanelNewTabEvidence(
+      page,
+      options,
+      workspace,
+      fileFixture,
+      {
+        readText: () => app.evaluate(({ clipboard }) => clipboard.readText()),
+        writeText: (text) =>
+          app.evaluate(
+            ({ clipboard }, value) => clipboard.writeText(value),
+            text,
+          ),
+      },
+    ),
   );
 
   const pendingAfterClicks = await listRightSurfacePending(

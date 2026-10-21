@@ -584,6 +584,9 @@ async fn stop_active_task(active_task: ActiveTask, outcome: RuntimeSessionTaskOu
         join.abort();
         let _ = join.await;
     }
+    if outcome == RuntimeSessionTaskOutcome::Interrupted {
+        let _ = tokio::time::timeout(TASK_ABORT_GRACE, task.interrupt(context.clone())).await;
+    }
     let _ = tokio::time::timeout(TASK_ABORT_GRACE, task.abort(context.clone())).await;
     context.input_handle().clear_turn_state().await;
     let _ = completion.send(Ok(outcome));

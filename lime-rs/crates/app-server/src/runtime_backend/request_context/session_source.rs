@@ -10,6 +10,9 @@ use std::path::PathBuf;
 pub(in crate::runtime_backend) fn session_source_from_request(
     request: &ExecutionRequest,
 ) -> AgentSessionSource {
+    if request.internal_agent_policy.is_some() {
+        return AgentSessionSource::MemoryConsolidation;
+    }
     let metadata = request
         .session
         .business_object_ref
@@ -53,7 +56,7 @@ pub(in crate::runtime_backend) fn session_source_from_request(
             })
             .unwrap_or_default(),
         "synthetic_subagent" => AgentSessionSource::SyntheticSubagent,
-        "memory_consolidation" => AgentSessionSource::MemoryConsolidation,
+
         _ => AgentSessionSource::Root,
     }
 }

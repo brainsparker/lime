@@ -1,4 +1,10 @@
-import { useMemo, type CSSProperties, type KeyboardEvent } from "react";
+import {
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+} from "react";
 import { ChevronDown, ChevronRight, File, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -8,21 +14,30 @@ import { useFileTreeViewport } from "./useFileTreeViewport";
 import type { FileSelectionOptions } from "./threadSidePanelTabs";
 
 import type { FileTreeRow } from "./fileTreeRows";
+import {
+  createFileTreeSelection,
+  selectFileTreePaths,
+  type FileTreeSelectionAction,
+} from "./fileTreeSelection";
 
 export function FileTree({
   scope,
   cwd,
   rows,
+  filePaths,
   expandedDirectories,
   selectedPath,
+  resetKey,
   onToggleDirectory,
   onSelectFile,
 }: {
   scope: string;
   cwd?: string;
   rows: readonly FileTreeRow[];
+  filePaths: ReadonlySet<string>;
   expandedDirectories: Readonly<Record<string, boolean>>;
   selectedPath: string | null;
+  resetKey?: object;
   onToggleDirectory: (path: string) => void;
   onSelectFile: (path: string, options?: FileSelectionOptions) => void;
 }) {
@@ -37,13 +52,46 @@ export function FileTree({
     [rows],
   );
   const tree = useFileTreeViewport(scope, positions, selectedPath);
+  const visiblePaths = useMemo(
+    () => rows.flatMap((row) => (row.kind === "entry" ? [row.entry.path] : [])),
+    [rows],
+  );
+  const [selection, setSelection] = useState(() => ({
+    scope,
+    selectedPath,
+    resetKey,
+    value: createFileTreeSelection(selectedPath),
+  }));
+  const selected =
+    selection.scope === scope &&
+    selection.selectedPath === selectedPath &&
+    selection.resetKey === resetKey
+      ? selection.value
+      : createFileTreeSelection(selectedPath);
+  useLayoutEffect(() => {
+    setSelection((previous) =>
+      previous.scope === scope &&
+      previous.selectedPath === selectedPath &&
+      previous.resetKey === resetKey
+        ? previous
+        : {
+            scope,
+            selectedPath,
+            resetKey,
+            value: createFileTreeSelection(selectedPath),
+          },
+    );
+  }, [scope, selectedPath, resetKey]);
+  const select = (action: FileTreeSelectionAction) => {
+    const value = selectFileTreePaths(selected, visiblePaths, action);
+    setSelection({ scope, selectedPath, resetKey, value });
+    const path = [...value.paths].find((path) => filePaths.has(path));
+    if (path) onSelectFile(path, { isPreview: true });
+  };
   const navigate = (event: KeyboardEvent<HTMLDivElement>) => {
     if (
       event.nativeEvent.isComposing ||
-      event.altKey ||
-      event.ctrlKey ||
-      event.metaKey ||
-      event.shiftKey ||
+      event.defaultPrevented ||
       !(event.target instanceof HTMLElement)
     )
       return;
@@ -56,24 +104,46 @@ export function FileTree({
         candidate.kind === "entry" &&
         candidate.entry.path === row.dataset.itemPath,
     );
-    const focusRow = (start: number, direction: number) => {
+    const focusRow = (start: number, direction: number, extend = false) => {
       for (
         let next = start;
         next >= 0 && next < rows.length;
         next += direction
       ) {
-        if (rows[next].kind === "entry") {
+        const candidate = rows[next];
+        if (candidate.kind === "entry") {
+          if (extend)
+            select({
+              kind: "extend",
+              from: row.dataset.itemPath!,
+              to: candidate.entry.path,
+            });
           tree.focusIndex(next);
           return;
         }
       }
     };
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      (event.key === " " || event.key === "Spacebar" || event.code === "Space")
+    ) {
+      select({ kind: "toggle", path: row.dataset.itemPath! });
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+      select({ kind: "all", focusedPath: row.dataset.itemPath! });
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     switch (event.key) {
       case "ArrowDown":
-        focusRow(index + 1, 1);
+        focusRow(index + 1, 1, event.shiftKey);
         break;
       case "ArrowUp":
-        focusRow(index - 1, -1);
+        focusRow(index - 1, -1, event.shiftKey);
         break;
       case "ArrowRight":
         if (row.getAttribute("aria-expanded") === "false")
@@ -151,7 +221,7 @@ export function FileTree({
       );
     const { entry, parentPath, depth, position, setSize } = row;
     const expanded = Boolean(expandedDirectories[entry.path]);
-    const selected = selectedPath === entry.path;
+    const isSelected = selected.paths.has(entry.path);
     return (
       <button
         key={entry.path}
@@ -170,27 +240,33 @@ export function FileTree({
         data-item-path={entry.path}
         data-item-parent-path={parentPath}
         data-item-type={entry.isDir ? "folder" : "file"}
-        data-item-selected={selected || undefined}
+        data-item-selected={isSelected || undefined}
         aria-label={entry.name}
         aria-level={sticky ? undefined : depth + 1}
         aria-posinset={sticky ? undefined : position + 1}
         aria-setsize={sticky ? undefined : setSize}
-        aria-selected={sticky ? undefined : selected}
+        aria-selected={sticky ? undefined : isSelected}
         aria-expanded={!sticky && entry.isDir ? expanded : undefined}
         title={entry.path}
         className={cn(
           "flex h-7 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-[13px] outline-none hover:bg-[color:var(--lime-chrome-tab-hover)] focus-visible:bg-[color:var(--lime-chrome-tab-hover)]",
           sticky && "bg-[color:var(--lime-surface)]",
-          selected && "bg-[color:var(--lime-chrome-tab-active-surface)]",
+          isSelected && "bg-[color:var(--lime-chrome-tab-active-surface)]",
         )}
         style={{ ...style, paddingInlineStart: 8 + depth * 14 }}
         onFocus={sticky ? undefined : () => tree.setFocusPath(entry.path)}
         onMouseDown={sticky ? (event) => event.preventDefault() : undefined}
-        onClick={() => {
+        onClick={(event) => {
           tree.setFocusPath(entry.path);
           if (sticky) tree.focusIndex(rowIndex);
-          if (entry.isDir) onToggleDirectory(entry.path);
-          else onSelectFile(entry.path, { isPreview: true });
+          const modified = event.ctrlKey || event.metaKey;
+          select(
+            event.shiftKey
+              ? { kind: "range", path: entry.path, additive: modified }
+              : { kind: modified ? "toggle" : "single", path: entry.path },
+          );
+          if (entry.isDir && !modified && !event.shiftKey)
+            onToggleDirectory(entry.path);
         }}
         onDoubleClick={() => {
           if (!entry.isDir) onSelectFile(entry.path, { isPreview: false });
@@ -216,6 +292,7 @@ export function FileTree({
     <WorkspaceFileContextMenu scope={scope} cwd={cwd}>
       <div
         role="tree"
+        aria-multiselectable="true"
         tabIndex={-1}
         onKeyDown={navigate}
         className="relative h-full min-h-0 outline-none"

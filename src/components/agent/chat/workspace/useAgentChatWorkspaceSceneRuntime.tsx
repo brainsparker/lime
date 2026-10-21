@@ -371,6 +371,7 @@ export function useAgentChatWorkspaceSceneRuntime({
           shouldRenderTaskCenterEmbeddedHome ||
           Boolean(taskCenterDraftSendRequest || homePendingPreviewRequest),
         threadItems: sceneThreadItems,
+        threadTurns: sceneThreadRead?.thread_turns ?? [],
         setExpertInfoPanelCollapsed,
         setHarnessPanelVisible,
         setLayoutMode,
@@ -552,7 +553,6 @@ export function useAgentChatWorkspaceSceneRuntime({
         navigationActions,
         inputbarScene,
         canvasScene,
-        handleSendFromEmptyState,
         shellChromeRuntime,
         currentImageWorkbenchActive: currentImageWorkbenchState.active,
         canvasWorkbenchPreviewOpenRequest:

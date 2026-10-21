@@ -580,6 +580,31 @@ describe("threadTimelineView", () => {
     expect(timeline.get("assistant-substantive")?.turn.id).toBe("turn-1");
   });
 
+  it("时间相同的 canonical 回合应保留服务端顺序，不按不透明 ID 重排", () => {
+    const first: AgentThreadTurn = {
+      id: "turn-z-first",
+      thread_id: "thread-1",
+      prompt_text: "先执行测试",
+      status: "completed",
+      started_at: "2026-10-20T12:21:50.000Z",
+      created_at: "2026-10-20T12:21:50.000Z",
+      updated_at: "2026-10-20T12:21:50.000Z",
+    };
+    const followup: AgentThreadTurn = {
+      ...first,
+      id: "turn-a-followup",
+      prompt_text: "根据失败输出继续修复",
+    };
+
+    expect(mergeThreadTurns([first, followup]).map((turn) => turn.id)).toEqual([
+      first.id,
+      followup.id,
+    ]);
+    expect(
+      mergeThreadTurns([first], [first, followup]).map((turn) => turn.id),
+    ).toEqual([first.id, followup.id]);
+  });
+
   it("应在增量刷新时合并并覆盖同 id 的 turn", () => {
     const previousTurns: AgentThreadTurn[] = [
       {

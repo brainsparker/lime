@@ -9,7 +9,7 @@ use crate::provider_trace::RuntimeProviderTraceAttempt;
 use crate::reply_execution::{RuntimeReplyAttemptError, RuntimeReplyExecution};
 use crate::reply_loop::{RuntimeReplyLoop, RuntimeReplyLoopStep, MAX_REPLY_TURNS_REACHED_MESSAGE};
 use crate::session_config::AgentSessionConfig;
-use crate::session_loop::RuntimeSessionInputHandle;
+use crate::session_loop::{RuntimeSessionInputHandle, RuntimeSessionStepContext};
 use ::code_mode::{
     RuntimeCodeModeSessionHandle, RuntimeCodeModeTool, CODE_MODE_EXEC_TOOL_NAME,
     CODE_MODE_WAIT_TOOL_NAME,
@@ -42,8 +42,8 @@ use std::time::Duration;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use tool_runtime::hook_lifecycle::{
-    evaluate_hook_event_async, RuntimeHookEventContext, RuntimeHookEventName, RuntimeHookReporter,
-    RuntimeStopHookContext, RuntimeStopHookTarget,
+    evaluate_hook_event_async, RuntimeCompactHookContext, RuntimeHookEventContext,
+    RuntimeHookEventName, RuntimeHookReporter, RuntimeStopHookContext, RuntimeStopHookTarget,
 };
 use tool_runtime::tool_call::{ToolCall, ToolEnvironment};
 use tool_runtime::tool_executor::{
@@ -95,6 +95,7 @@ pub struct RuntimeToolStepSnapshot {
     filesystem_gateway: Option<Arc<dyn tool_runtime::filesystem_gateway::RuntimeFileSystemGateway>>,
     history_token_limit: Option<usize>,
     mid_turn_compaction: Option<RuntimeMidTurnCompactionCapabilityHandle>,
+    step_context: Option<RuntimeSessionStepContext>,
 }
 
 impl RuntimeToolStepSnapshot {
@@ -112,6 +113,7 @@ impl RuntimeToolStepSnapshot {
             filesystem_gateway: None,
             history_token_limit: None,
             mid_turn_compaction: None,
+            step_context: None,
         }
     }
 
@@ -131,6 +133,7 @@ impl RuntimeToolStepSnapshot {
             filesystem_gateway: None,
             history_token_limit: None,
             mid_turn_compaction: None,
+            step_context: None,
         }
     }
 
@@ -173,6 +176,15 @@ impl RuntimeToolStepSnapshot {
         self
     }
 
+    pub fn with_step_context(mut self, context: RuntimeSessionStepContext) -> Self {
+        self.step_context = Some(context);
+        self
+    }
+
+    pub fn step_context(&self) -> Option<&RuntimeSessionStepContext> {
+        self.step_context.as_ref()
+    }
+
     /// 注入由 App Server 持有的同 Turn 压缩能力。
     ///
     /// agent-runtime 只负责在 provider continuation 边界调用该能力，不依赖 App Server
@@ -209,6 +221,11 @@ pub struct RuntimeMidTurnCompactionResult {
     pub compaction_id: String,
     pub context_epoch: u64,
     pub covered_through_sequence: u64,
+    /// EventLog id for a replacement that was already durably committed by the host.
+    ///
+    /// The provider loop forwards this receipt through the current event sink instead of
+    /// serializing the compaction a second time.
+    pub durable_event_id: Option<String>,
 }
 
 pub type RuntimeMidTurnCompactionFuture<'a> = Pin<
@@ -216,6 +233,10 @@ pub type RuntimeMidTurnCompactionFuture<'a> = Pin<
 >;
 
 pub trait RuntimeMidTurnCompactionCapability: Send + Sync {
+    fn should_compact(&self, _usage: &CurrentProviderUsage) -> bool {
+        true
+    }
+
     fn compact(
         &self,
         request: RuntimeMidTurnCompactionRequest,
@@ -274,13 +295,20 @@ impl RuntimeMidTurnCompactionCapabilityHandle {
     ) -> Result<Option<RuntimeMidTurnCompactionResult>, String> {
         self.0.compact(request, cancellation).await
     }
+
+    fn should_compact(&self, usage: &CurrentProviderUsage) -> bool {
+        self.0.should_compact(usage)
+    }
 }
 
 pub type RuntimeToolStepSnapshotFuture<'a> =
     Pin<Box<dyn Future<Output = Result<RuntimeToolStepSnapshot, String>> + Send + 'a>>;
 
 pub trait RuntimeToolStepSnapshotSource: Send + Sync {
-    fn capture(&self) -> RuntimeToolStepSnapshotFuture<'_>;
+    fn capture(
+        &self,
+        step_context: Option<&RuntimeSessionStepContext>,
+    ) -> RuntimeToolStepSnapshotFuture<'_>;
 }
 
 #[derive(Clone)]
@@ -295,8 +323,11 @@ impl RuntimeToolStepSnapshotSourceHandle {
         Self::new(Arc::new(FixedRuntimeToolStepSnapshotSource { snapshot }))
     }
 
-    async fn capture(&self) -> Result<RuntimeToolStepSnapshot, String> {
-        self.0.capture().await
+    pub async fn capture(
+        &self,
+        step_context: Option<&RuntimeSessionStepContext>,
+    ) -> Result<RuntimeToolStepSnapshot, String> {
+        self.0.capture(step_context).await
     }
 }
 
@@ -305,7 +336,10 @@ struct FixedRuntimeToolStepSnapshotSource {
 }
 
 impl RuntimeToolStepSnapshotSource for FixedRuntimeToolStepSnapshotSource {
-    fn capture(&self) -> RuntimeToolStepSnapshotFuture<'_> {
+    fn capture(
+        &self,
+        _step_context: Option<&RuntimeSessionStepContext>,
+    ) -> RuntimeToolStepSnapshotFuture<'_> {
         Box::pin(async move { Ok(self.snapshot.clone()) })
     }
 }
@@ -314,13 +348,17 @@ impl RuntimeToolStepSnapshotSource for FixedRuntimeToolStepSnapshotSource {
 pub struct RuntimeHookStepSnapshot {
     pub hooks: Vec<RuntimeHookSnapshot>,
     pub reporter: Arc<dyn RuntimeHookReporter>,
+    pub step_context: Option<RuntimeSessionStepContext>,
 }
 
 pub type RuntimeHookSnapshotFuture<'a> =
     Pin<Box<dyn Future<Output = Result<RuntimeHookStepSnapshot, String>> + Send + 'a>>;
 
 pub trait RuntimeHookSnapshotSource: Send + Sync {
-    fn capture(&self) -> RuntimeHookSnapshotFuture<'_>;
+    fn capture(
+        &self,
+        step_context: Option<&RuntimeSessionStepContext>,
+    ) -> RuntimeHookSnapshotFuture<'_>;
 }
 
 #[derive(Clone)]
@@ -335,8 +373,11 @@ impl RuntimeHookSnapshotSourceHandle {
         Self::new(Arc::new(FixedRuntimeHookSnapshotSource { snapshot }))
     }
 
-    async fn capture(&self) -> Result<RuntimeHookStepSnapshot, String> {
-        self.0.capture().await
+    pub async fn capture(
+        &self,
+        step_context: Option<&RuntimeSessionStepContext>,
+    ) -> Result<RuntimeHookStepSnapshot, String> {
+        self.0.capture(step_context).await
     }
 }
 
@@ -345,7 +386,10 @@ struct FixedRuntimeHookSnapshotSource {
 }
 
 impl RuntimeHookSnapshotSource for FixedRuntimeHookSnapshotSource {
-    fn capture(&self) -> RuntimeHookSnapshotFuture<'_> {
+    fn capture(
+        &self,
+        _step_context: Option<&RuntimeSessionStepContext>,
+    ) -> RuntimeHookSnapshotFuture<'_> {
         Box::pin(async move { Ok(self.snapshot.clone()) })
     }
 }
@@ -456,6 +500,7 @@ pub enum CurrentProviderTurnEvent {
         compaction_id: String,
         context_epoch: u64,
         covered_through_sequence: u64,
+        durable_event_id: Option<String>,
     },
     HookPrompt {
         item: ThreadItem,
@@ -587,13 +632,14 @@ where
                 ]));
             }
         }
-        if let Some(input) = pending_input.as_ref() {
-            // Context, tool inventory and mailbox phase are captured once per sampling step.
-            let _step_context = input.capture_step_context().await;
-        }
+        // Context, tool inventory and mailbox phase are captured once per sampling step.
+        let step_context = match pending_input.as_ref() {
+            Some(input) => Some(input.capture_step_context().await),
+            None => None,
+        };
 
         let mut tool_step_snapshot = tool_step_snapshot_source
-            .capture()
+            .capture(step_context.as_ref())
             .await
             .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
 
@@ -604,13 +650,24 @@ where
         let hook_step_snapshot = match hook_snapshot_source.as_ref() {
             Some(source) => Some(
                 source
-                    .capture()
+                    .capture(step_context.as_ref())
                     .await
                     .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?,
             ),
             None => None,
         };
         if let Some(hook_step_snapshot) = hook_step_snapshot.as_ref() {
+            if let (Some(tool_context), Some(hook_context)) = (
+                tool_step_snapshot.step_context(),
+                hook_step_snapshot.step_context.as_ref(),
+            ) {
+                if tool_context != hook_context {
+                    return Err(RuntimeReplyAttemptError::new(
+                        "provider step snapshots captured different session contexts",
+                        emitted_any,
+                    ));
+                }
+            }
             hook_snapshot::apply_snapshot(&mut tool_step_snapshot, hook_step_snapshot.clone())
                 .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
         }
@@ -1164,9 +1221,13 @@ where
                     if call.name == CODE_MODE_WAIT_TOOL_NAME
                         && tool_step_snapshot.code_mode_session().is_some()
                     {
-                        pending_calls.push(PendingProviderToolCall::CodeModeWait(call));
+                        pending_calls.push(PendingProviderToolCall::CodeModeWait(
+                            tool_call::annotate_step_context(call, step_context.as_ref()),
+                        ));
                     } else {
-                        pending_calls.push(PendingProviderToolCall::Function(call));
+                        pending_calls.push(PendingProviderToolCall::Function(
+                            tool_call::annotate_step_context(call, step_context.as_ref()),
+                        ));
                     }
                 }
                 CanonicalLlmEvent::CustomToolCall {
@@ -1203,6 +1264,8 @@ where
                         CurrentProviderCustomToolCall::new(id.clone(), name.clone(), input.clone());
                     custom_call.namespace = namespace;
                     custom_call.provider_metadata = provider_metadata;
+                    custom_call =
+                        tool_call::annotate_custom_step_context(custom_call, step_context.as_ref());
                     crate::model_history::record_calls(
                         session_config.model_history_recorder.as_ref(),
                         &[CurrentProviderContent::CustomToolCall(custom_call.clone())],
@@ -1427,6 +1490,8 @@ where
                 initial_messages.extend(pending_messages);
                 maybe_compact_after_step(
                     step_mid_turn_compaction.as_ref(),
+                    hook_step_snapshot.as_ref(),
+                    pending_input.as_ref(),
                     &mut initial_messages,
                     &mut history_prefix_len,
                     step_usage.as_ref(),
@@ -1438,6 +1503,9 @@ where
                     cancel_token.as_ref(),
                     &mut on_event,
                     emitted_any,
+                    &session_config,
+                    &turn_id,
+                    &working_directory,
                 )
                 .await?;
                 continue;
@@ -1644,6 +1712,8 @@ where
         initial_messages.extend(pending_messages);
         maybe_compact_after_step(
             step_mid_turn_compaction.as_ref(),
+            hook_step_snapshot.as_ref(),
+            pending_input.as_ref(),
             &mut initial_messages,
             &mut history_prefix_len,
             step_usage.as_ref(),
@@ -1655,6 +1725,9 @@ where
             cancel_token.as_ref(),
             &mut on_event,
             emitted_any,
+            &session_config,
+            &turn_id,
+            &working_directory,
         )
         .await?;
     }
@@ -1662,6 +1735,8 @@ where
 
 async fn maybe_compact_after_step<F>(
     capability: Option<&RuntimeMidTurnCompactionCapabilityHandle>,
+    hook_step: Option<&RuntimeHookStepSnapshot>,
+    pending_input: Option<&RuntimeSessionInputHandle>,
     messages: &mut Vec<CurrentProviderMessage>,
     history_prefix_len: &mut usize,
     usage: Option<&CurrentProviderUsage>,
@@ -1673,6 +1748,9 @@ async fn maybe_compact_after_step<F>(
     cancel_token: Option<&CancellationToken>,
     on_event: &mut F,
     emitted_any: bool,
+    session_config: &AgentSessionConfig,
+    turn_id: &str,
+    working_directory: &Path,
 ) -> Result<(), RuntimeReplyAttemptError>
 where
     F: FnMut(CurrentProviderTurnEvent) + Send,
@@ -1680,12 +1758,25 @@ where
     let Some(capability) = capability else {
         return Ok(());
     };
+    let usage = usage.cloned().unwrap_or_default();
+    if !capability.should_compact(&usage) {
+        return Ok(());
+    }
+    run_compaction_hook(
+        hook_step,
+        RuntimeHookEventName::PreCompact,
+        session_config,
+        turn_id,
+        working_directory,
+        emitted_any,
+    )
+    .await?;
     let result = capability
         .compact(
             RuntimeMidTurnCompactionRequest {
                 messages: messages.clone(),
                 history_prefix_len: (*history_prefix_len).min(messages.len()),
-                usage: usage.cloned().unwrap_or_default(),
+                usage,
                 attempt,
                 system_prompt,
                 generation,
@@ -1697,18 +1788,107 @@ where
         .await
         .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
     if let Some(result) = result {
+        // A successful same-turn replacement starts a new context epoch.  Keep the
+        // session input handle as the single owner of that monotonic counter so the
+        // next sampling step captures the new epoch together with its tool and hook
+        // snapshots.  The compaction capability returns the epoch it committed;
+        // reject a stale or speculative result before exposing the replacement.
+        let context_epoch = if let Some(input) = pending_input {
+            let expected = input.advance_context_epoch().await;
+            if result.context_epoch != expected {
+                return Err(RuntimeReplyAttemptError::new(
+                    format!(
+                        "mid-turn compaction context epoch mismatch: expected {expected}, got {}",
+                        result.context_epoch
+                    ),
+                    emitted_any,
+                ));
+            }
+            expected
+        } else {
+            result.context_epoch
+        };
         *messages = result.messages;
         *history_prefix_len = result.history_prefix_len.min(messages.len());
+        run_compaction_hook(
+            hook_step,
+            RuntimeHookEventName::PostCompact,
+            session_config,
+            turn_id,
+            working_directory,
+            emitted_any,
+        )
+        .await?;
         on_event(CurrentProviderTurnEvent::MidTurnCompaction {
             compaction_id: result.compaction_id,
-            context_epoch: result.context_epoch,
+            context_epoch,
             covered_through_sequence: result.covered_through_sequence,
+            durable_event_id: result.durable_event_id,
         });
     }
     Ok(())
 }
 
-fn provider_request_controls(
+async fn run_compaction_hook(
+    hook_step: Option<&RuntimeHookStepSnapshot>,
+    event_name: RuntimeHookEventName,
+    session_config: &AgentSessionConfig,
+    turn_id: &str,
+    working_directory: &Path,
+    emitted_any: bool,
+) -> Result<(), RuntimeReplyAttemptError> {
+    let Some(hook_step) = hook_step else {
+        return Ok(());
+    };
+    if !hook_step
+        .hooks
+        .iter()
+        .any(|hook| hook.event_name == event_name)
+    {
+        return Ok(());
+    }
+    let model = session_config
+        .turn_context
+        .as_ref()
+        .and_then(|context| context.model.clone())
+        .unwrap_or_else(|| "unknown".to_string());
+    let context = RuntimeHookEventContext {
+        session_id: Some(session_config.id.clone()),
+        turn_id: Some(turn_id.to_string()),
+        working_directory: working_directory.to_path_buf(),
+        compact: Some(RuntimeCompactHookContext {
+            invocation_id: format!("{turn_id}:{}", event_name.key_label()),
+            model,
+            trigger: "auto_context_limit".to_string(),
+            transcript_path: session_config.stop_hook_transcript_path.clone(),
+        }),
+        ..RuntimeHookEventContext::default()
+    };
+    let evaluation = evaluate_hook_event_async(
+        &RuntimeTurnSnapshot::try_new(Vec::new(), hook_step.hooks.clone()).map_err(|error| {
+            RuntimeReplyAttemptError::new(
+                format!("compaction hook snapshot is invalid: {error:?}"),
+                emitted_any,
+            )
+        })?,
+        event_name,
+        &context,
+        hook_step.reporter.as_ref(),
+    )
+    .await;
+    if evaluation.is_blocked() {
+        return Err(RuntimeReplyAttemptError::new(
+            evaluation
+                .blocking_reason()
+                .unwrap_or_else(|| format!("{event_name:?} hook blocked compaction")),
+            emitted_any,
+        ));
+    }
+    Ok(())
+}
+
+/// Resolve the shared generation controls for loop and single-sample requests.
+pub fn provider_request_controls(
     session_config: &AgentSessionConfig,
 ) -> (GenerationOptions, ProviderMetadata) {
     let mut generation = GenerationOptions::default();

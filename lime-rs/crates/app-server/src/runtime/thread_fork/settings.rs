@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn validate_fork_params(params: &ThreadForkParams) -> Result<(), RuntimeCoreError> {
-    if params.thread_id.trim().is_empty() {
+    if params.thread_id.trim().is_empty() && params.path.as_deref().is_none() {
         return Err(invalid("thread/fork requires a non-empty threadId"));
     }
     if params.last_turn_id.is_some() && params.before_turn_id.is_some() {
@@ -17,20 +17,13 @@ pub(super) fn validate_fork_params(params: &ThreadForkParams) -> Result<(), Runt
     if params
         .path
         .as_deref()
-        .is_some_and(|path| !path.trim().is_empty())
+        .is_some_and(|path| path.trim().is_empty())
     {
-        return Err(invalid(
-            "thread/fork path is not implemented by the current runtime boundary",
-        ));
+        return Err(invalid("thread/fork path must not be empty"));
     }
     if params.ephemeral && params.defer_goal_continuation {
         return Err(invalid(
             "thread/fork deferGoalContinuation cannot be combined with ephemeral",
-        ));
-    }
-    if params.ephemeral {
-        return Err(invalid(
-            "thread/fork ephemeral storage is not implemented by the current runtime boundary",
         ));
     }
     for (name, value) in [
@@ -77,38 +70,43 @@ pub(super) fn fork_thread_snapshot(
         .metadata
         .as_object_mut()
         .ok_or_else(|| invalid("thread/fork source metadata must be a JSON object"))?;
-    apply_fork_overrides(metadata, params);
+    apply_fork_overrides(metadata, params)?;
+    for key in ["path", "rolloutPath", "rollout_path"] {
+        metadata.remove(key);
+    }
     RuntimeCore::normalize_thread_working_directory_metadata(metadata)?;
     metadata.insert("forkSequence".to_string(), Value::from(history_sequence));
+    metadata.insert(
+        "forkedFromId".to_string(),
+        Value::String(params.thread_id.trim().to_string()),
+    );
     if let Some(model_provider) = params.model_provider.as_deref() {
         source.model_provider = model_provider.to_string();
     }
     Ok(source)
 }
 
-fn apply_fork_overrides(metadata: &mut Map<String, Value>, params: &ThreadForkParams) {
+fn apply_fork_overrides(
+    metadata: &mut Map<String, Value>,
+    params: &ThreadForkParams,
+) -> Result<(), RuntimeCoreError> {
+    // Use the same model-bound setting owner as ordinary model switches. In particular,
+    // a different provider/model cannot retain the source's effort, tier or agent route.
+    super::super::session_operations::apply_thread_settings_patch(
+        metadata,
+        app_server_protocol::protocol::v2::ThreadSettingsUpdateParams {
+            model: params.model.clone(),
+            model_provider: params.model_provider.clone(),
+            service_tier: params.service_tier.clone(),
+            ..Default::default()
+        },
+        None,
+    )
+    .map_err(invalid)?;
+    // Codex only restores a saved collaboration mode for Resumed history. A normal
+    // Forked history starts in Default mode; prior Plan instructions remain history.
+    metadata.remove("collaborationMode");
     for (key, value) in [
-        (
-            "modelName",
-            params
-                .model
-                .as_ref()
-                .map(|value| Value::String(value.clone())),
-        ),
-        (
-            "providerSelector",
-            params
-                .model_provider
-                .as_ref()
-                .map(|value| Value::String(value.clone())),
-        ),
-        (
-            "providerName",
-            params
-                .model_provider
-                .as_ref()
-                .map(|value| Value::String(value.clone())),
-        ),
         (
             "workingDir",
             params
@@ -171,14 +169,6 @@ fn apply_fork_overrides(metadata: &mut Map<String, Value>, params: &ThreadForkPa
             metadata.insert(key.to_string(), value);
         }
     }
-    if let Some(service_tier) = params.service_tier.as_ref() {
-        metadata.insert(
-            "serviceTier".to_string(),
-            service_tier
-                .as_ref()
-                .map(|value| Value::String(value.clone()))
-                .unwrap_or(Value::Null),
-        );
-    }
-    metadata.insert("ephemeral".to_string(), Value::Bool(false));
+    metadata.insert("ephemeral".to_string(), Value::Bool(params.ephemeral));
+    Ok(())
 }

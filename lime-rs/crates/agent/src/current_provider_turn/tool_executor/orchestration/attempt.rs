@@ -8,10 +8,16 @@ pub(super) struct CurrentToolAttemptRunner<'a> {
 impl RuntimeToolAttemptRunner for CurrentToolAttemptRunner<'_> {
     fn handles_cancellation(&self) -> bool {
         tool_runtime::unified_exec::is_unified_exec_tool_name(self.request.tool_name)
+            || (self.executor.internal_agent_policy.is_some()
+                && self.request.tool_name == "apply_patch")
     }
 
     fn run<'a>(&'a self, attempt: RuntimeToolExecutionAttempt) -> RuntimeToolAttemptFuture<'a> {
         Box::pin(async move {
+            let attempt = match self.executor.internal_agent_policy.as_ref() {
+                Some(policy) => attempt.with_internal_agent_policy(policy.clone()),
+                None => attempt,
+            };
             let mut turn_context = self.request.turn_context.cloned();
             if attempt.approval_source() != RuntimeToolApprovalSource::Config {
                 turn_context

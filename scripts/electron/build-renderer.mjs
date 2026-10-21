@@ -1,17 +1,24 @@
 process.env.LIME_ELECTRON_RENDERER = "1";
 
 const { spawn } = await import("node:child_process");
+const { beginRendererBuild, completeRendererBuild, invalidateRendererBuild } =
+  await import("../lib/electron-renderer-build.mjs");
 const {
   acquireRendererBuildLock,
   rendererBuildEnv,
   startRendererBuildHeartbeat,
-} =
-  await import("./renderer-build-env.mjs");
+} = await import("./renderer-build-env.mjs");
 
 const releaseBuildLock = acquireRendererBuildLock();
 const stopHeartbeat = startRendererBuildHeartbeat();
+let build;
 try {
+  build = beginRendererBuild(process.cwd());
   await run("npx", ["vite", "build", "--base", "./"]);
+  completeRendererBuild(build);
+} catch (error) {
+  if (build) invalidateRendererBuild(build);
+  throw error;
 } finally {
   stopHeartbeat();
   releaseBuildLock();

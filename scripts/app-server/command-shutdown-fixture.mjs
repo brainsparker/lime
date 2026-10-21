@@ -48,10 +48,30 @@ const processes = [];
 const threads = [];
 const fixture = await startOpenAiCompatibleFixtureServer({
   model: "command-shutdown-fixture",
-  scriptedResponses: Array.from(
-    { length: cli || active ? 1 : 2 },
-    (_, index) => [
-      {
+  // Match each user thread's history; background memory requests must not
+  // consume another thread's tool call or completion.
+  scriptedResponses: [
+    ({ body }) => {
+      const messages = body.messages ?? [];
+      const prompt = messages.find(
+        (message) =>
+          message.role === "user" &&
+          (message.content === "start a background command" ||
+            /^start background [01]$/u.test(message.content)),
+      )?.content;
+      if (!prompt)
+        return { type: "text", content: "No background command requested." };
+      const index = prompt === "start background 1" ? 1 : 0;
+      if (
+        messages.some(
+          (message) =>
+            message.role === "tool" &&
+            message.tool_call_id === `shutdown-${index}`,
+        )
+      ) {
+        return { type: "text", content: `BACKGROUND_STARTED_${index}` };
+      }
+      return {
         type: "tool_call",
         name: "exec_command",
         id: `shutdown-${index}`,
@@ -63,10 +83,9 @@ const fixture = await startOpenAiCompatibleFixtureServer({
           tty: true,
           yield_time_ms: active ? 30_000 : 250,
         },
-      },
-      { type: "text", content: `BACKGROUND_STARTED_${index}` },
-    ],
-  ).flat(),
+      };
+    },
+  ],
 });
 
 const connect = () =>
@@ -105,6 +124,14 @@ const command = (thread, index) =>
   thread.turns
     .flatMap((turn) => turn.items)
     .find((item) => item.id === `item_shutdown-${index}`);
+function requestBelongsToThread({ body }, id) {
+  return body.messages?.some(
+    (message) =>
+      message.role === "user" &&
+      typeof message.content === "string" &&
+      message.content.includes(`<thread_id>${id}</thread_id>`),
+  );
+}
 function alive(pid) {
   try {
     process.kill(pid, 0);
@@ -313,8 +340,10 @@ try {
         }
       }
       assert.equal(thread.turns[0].status, active ? "inProgress" : "completed");
-      assert.equal(command(thread, index).status, "inProgress");
-      threads.push({ id, command: command(thread, index) });
+      const item = command(thread, index);
+      assert.ok(item, `thread ${id} must own shutdown-${index}`);
+      assert.equal(item.status, "inProgress");
+      threads.push({ id, command: item });
     }
   }
   for (let index = 0; index < threads.length; index++) {
@@ -364,11 +393,22 @@ try {
     terminal(thread, index);
     cold.push(thread);
   }
+  const userRequests = fixture.requests.filter((request) =>
+    threads.some(({ id }) => requestBelongsToThread(request, id)),
+  );
   assert.equal(
-    fixture.requests.length,
+    userRequests.length,
     active ? 1 : cli ? 2 : 4,
     "shutdown never calls the provider again",
   );
+  for (const { id } of threads) {
+    assert.equal(
+      userRequests.filter((request) => requestBelongsToThread(request, id))
+        .length,
+      active ? 1 : 2,
+      `thread ${id}: no provider sampling after shutdown`,
+    );
+  }
   await writeFile(
     path.join(directory, "evidence.json"),
     JSON.stringify(
@@ -378,6 +418,7 @@ try {
         cold,
         notifications,
         providerRequests: fixture.requests.length,
+        userProviderRequests: userRequests.length,
         backend: "runtime",
         transport: "stdio",
         host: cli ? "CLI" : "App Server",

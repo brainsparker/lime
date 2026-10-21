@@ -1,5 +1,3 @@
-use super::consolidation::PROCESSED_NOTES_DIR;
-use super::consolidation::REVIEW_NOTES_DIR;
 use super::*;
 
 struct FixtureStageOneProvider;
@@ -22,157 +20,21 @@ impl MemoryStageOneProvider for FixtureStageOneProvider {
     }
 }
 
-struct FixtureStageTwoProvider;
+struct FixtureMemoryAgent;
 
 #[async_trait::async_trait]
-impl MemoryStageTwoProvider for FixtureStageTwoProvider {
-    async fn sample(
-        &self,
-        request: MemoryStageTwoProviderRequest,
-    ) -> Result<String, RuntimeCoreError> {
-        assert!(request.strict);
-        assert_eq!(request.output_schema["additionalProperties"], false);
-        let entries = request
-            .inputs
-            .into_iter()
-            .map(|input| {
-                serde_json::json!({
-                    "source_path": input.source_path,
-                    "decision": "accept",
-                    "memory": input.raw_memory.or(input.rollout_summary).unwrap_or_else(|| "durable memory".to_string()),
-                    "reason": null
-                })
-            })
-            .collect::<Vec<_>>();
-        Ok(serde_json::json!({"entries": entries, "summary": "fixture consolidation"}).to_string())
-    }
-}
-
-struct ReviewStageOneProvider;
-
-#[async_trait::async_trait]
-impl MemoryStageOneProvider for ReviewStageOneProvider {
-    async fn sample(
-        &self,
-        _request: MemoryStageOneProviderRequest,
-    ) -> Result<String, RuntimeCoreError> {
-        Ok(serde_json::json!({
-            "rollout_summary": "api_key must remain out of durable memory and requires review.",
-            "rollout_slug": "secret-review"
-        })
-        .to_string())
-    }
-}
-
-struct ReviewStageTwoProvider;
-
-#[async_trait::async_trait]
-impl MemoryStageTwoProvider for ReviewStageTwoProvider {
-    async fn sample(
-        &self,
-        request: MemoryStageTwoProviderRequest,
-    ) -> Result<String, RuntimeCoreError> {
-        let source_path = request
-            .inputs
-            .first()
-            .map(|input| input.source_path.clone())
-            .expect("review input");
-        Ok(serde_json::json!({
-            "entries": [{
-                "source_path": source_path,
-                "decision": "review",
-                "memory": null,
-                "reason": "secret-like content requires review"
-            }],
-            "summary": "review required"
-        })
-        .to_string())
-    }
-}
-
-struct UnknownSourceStageTwoProvider;
-
-#[async_trait::async_trait]
-impl MemoryStageTwoProvider for UnknownSourceStageTwoProvider {
-    async fn sample(
-        &self,
-        _request: MemoryStageTwoProviderRequest,
-    ) -> Result<String, RuntimeCoreError> {
-        Ok(serde_json::json!({
-            "entries": [{
-                "source_path": "extensions/ad_hoc/notes/unknown.md",
-                "decision": "accept",
-                "memory": "unknown source must be rejected",
-                "reason": null
-            }],
-            "summary": "unsafe"
-        })
-        .to_string())
-    }
-}
-
-struct DuplicateSourceStageTwoProvider;
-
-#[async_trait::async_trait]
-impl MemoryStageTwoProvider for DuplicateSourceStageTwoProvider {
-    async fn sample(
-        &self,
-        request: MemoryStageTwoProviderRequest,
-    ) -> Result<String, RuntimeCoreError> {
-        let source_path = request.inputs[0].source_path.clone();
-        Ok(serde_json::json!({
-            "entries": [
-                {"source_path": source_path.clone(), "decision": "accept", "memory": "first", "reason": null},
-                {"source_path": source_path, "decision": "accept", "memory": "duplicate", "reason": null}
-            ],
-            "summary": "unsafe"
-        })
-        .to_string())
-    }
-}
-
-struct MissingSourceStageTwoProvider;
-
-#[async_trait::async_trait]
-impl MemoryStageTwoProvider for MissingSourceStageTwoProvider {
-    async fn sample(
-        &self,
-        request: MemoryStageTwoProviderRequest,
-    ) -> Result<String, RuntimeCoreError> {
-        Ok(serde_json::json!({
-            "entries": [{
-                "source_path": request.inputs[0].source_path,
-                "decision": "accept",
-                "memory": "missing source must be rejected",
-                "reason": null
-            }],
-            "summary": "unsafe"
-        })
-        .to_string())
-    }
-}
-
-struct OversizedStageTwoProvider;
-
-#[async_trait::async_trait]
-impl MemoryStageTwoProvider for OversizedStageTwoProvider {
-    async fn sample(
-        &self,
-        _request: MemoryStageTwoProviderRequest,
-    ) -> Result<String, RuntimeCoreError> {
-        Ok("x".repeat(128 * 1024 + 1))
-    }
-}
-
-struct FailingStageTwoProvider;
-
-#[async_trait::async_trait]
-impl MemoryStageTwoProvider for FailingStageTwoProvider {
-    async fn sample(
-        &self,
-        _request: MemoryStageTwoProviderRequest,
-    ) -> Result<String, RuntimeCoreError> {
-        Err(backend_error("fixture provider failed"))
+impl MemoryAgent for FixtureMemoryAgent {
+    async fn run(&self, request: MemoryAgentRequest) -> Result<(), MemoryAgentError> {
+        let raw = fs::read_to_string(request.root.join("raw_memories.md")).unwrap();
+        assert!(raw.contains("Remember the provider route constraint."));
+        fs::write(
+            request.root.join(MEMORY_FILE),
+            "Remember the provider route constraint.\n",
+        )
+        .unwrap();
+        fs::write(request.root.join(SUMMARY_FILE),
+            "v1\n\n## User Profile\n\n## User preferences\n\n## General Tips\n\n## What's in Memory\n\nRemember the provider route constraint.\n").unwrap();
+        Ok(())
     }
 }
 
@@ -220,7 +82,7 @@ async fn list_initializes_stable_layout() {
         .iter()
         .map(|entry| entry.path.as_str())
         .collect::<Vec<_>>();
-    assert!(paths.contains(&MEMORY_FILE));
+    assert!(!paths.contains(&MEMORY_FILE));
     assert!(paths.contains(&SUMMARY_FILE));
     assert!(paths.contains(&"extensions"));
     assert!(paths.contains(&"rollout_summaries"));
@@ -261,7 +123,7 @@ async fn status_reports_codex_memory_readiness_after_rollout_consolidation() {
         .expect("stage one rollout summary");
     assert_eq!(stage_one.succeeded, 1);
     let stage_two = backend
-        .run_stage2(global_root(), &route, &FixtureStageTwoProvider)
+        .run_stage2(global_root(), &route, &FixtureMemoryAgent)
         .await
         .expect("stage two rollout summary");
     assert_eq!(stage_two.succeeded, 1);
@@ -398,7 +260,7 @@ async fn stage_one_claims_provider_parses_strict_output_and_persists_snapshot() 
 }
 
 #[tokio::test]
-async fn stage_two_provider_uses_stage_one_snapshot_and_archives_source() {
+async fn stage_two_agent_uses_stage_one_snapshot_and_preserves_source() {
     let temp = tempfile::tempdir().expect("tempdir");
     let backend = backend(&temp);
     let note = backend
@@ -432,134 +294,18 @@ async fn stage_two_provider_uses_stage_one_snapshot_and_archives_source() {
         .await
         .expect("stage one");
     let result = backend
-        .run_stage2(global_root(), &route, &FixtureStageTwoProvider)
+        .run_stage2(global_root(), &route, &FixtureMemoryAgent)
         .await
         .expect("stage two");
     assert_eq!(result.claimed, 1);
     assert_eq!(result.succeeded, 1);
     assert_eq!(result.no_output, 0);
     let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-    assert!(!root.join(&note.path).exists());
-    let archived = fs::read_dir(root.join(PROCESSED_NOTES_DIR))
-        .expect("processed notes")
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .any(|path| path.is_file());
-    assert!(archived);
+    assert!(root.join(&note.path).is_file());
+    assert!(root.join(".git").is_dir());
+    assert!(!root.join("phase2_workspace_diff.md").exists());
     let memory = fs::read_to_string(root.join(MEMORY_FILE)).expect("memory register");
     assert!(memory.contains("Remember the provider route constraint."));
-}
-
-#[tokio::test]
-async fn stage_two_review_moves_source_and_marks_durable_review_state() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let backend = backend(&temp);
-    let note = backend
-        .add_note(MemoryStoreAddNoteParams {
-            root: global_root(),
-            title: Some("Review route".to_string()),
-            slug: Some("review-route".to_string()),
-            content: "api_key should require human review.".to_string(),
-        })
-        .await
-        .expect("add note");
-    let route = test_route();
-    backend
-        .run_stage1(
-            global_root(),
-            MemoryStageOneVersion::V2,
-            &route,
-            &ReviewStageOneProvider,
-        )
-        .await
-        .expect("stage one");
-    let result = backend
-        .run_stage2(global_root(), &route, &ReviewStageTwoProvider)
-        .await
-        .expect("stage two");
-    assert_eq!(result.succeeded, 0);
-    assert_eq!(result.no_output, 1);
-    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-    assert!(!root.join(&note.path).exists());
-    let archived_name = Path::new(&note.path).file_name().expect("note file name");
-    assert!(root.join(REVIEW_NOTES_DIR).join(archived_name).is_file());
-    let scope_key = backend.state_scope_key(&root).expect("scope key");
-    let conn = backend.state.open().expect("state db");
-    let status = conn
-        .query_row(
-            "SELECT status FROM memory_rollout_jobs WHERE scope_key = ?1 AND source_path = ?2",
-            rusqlite::params![scope_key, note.path],
-            |row| row.get::<_, String>(0),
-        )
-        .expect("review status");
-    assert_eq!(status, "review");
-}
-
-#[tokio::test]
-async fn stage_two_rejects_unsafe_provider_outputs_before_mutating_sources() {
-    let cases: Vec<(&str, Box<dyn MemoryStageTwoProvider>)> = vec![
-        ("unknown", Box::new(UnknownSourceStageTwoProvider)),
-        ("duplicate", Box::new(DuplicateSourceStageTwoProvider)),
-        ("oversized", Box::new(OversizedStageTwoProvider)),
-        ("provider failure", Box::new(FailingStageTwoProvider)),
-    ];
-    for (label, provider) in cases {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let backend = backend(&temp);
-        let note = backend
-            .add_note(MemoryStoreAddNoteParams {
-                root: global_root(),
-                title: Some(format!("Unsafe {label}")),
-                slug: Some(format!("unsafe-{label}")),
-                content: "retain source on failed consolidation".to_string(),
-            })
-            .await
-            .expect("add note");
-        let route = test_route();
-        backend
-            .run_stage1(
-                global_root(),
-                MemoryStageOneVersion::V1,
-                &route,
-                &FixtureStageOneProvider,
-            )
-            .await
-            .expect("stage one");
-        let result = backend
-            .run_stage2(global_root(), &route, provider.as_ref())
-            .await;
-        assert!(result.is_err(), "{label} output must fail closed");
-        let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-        assert!(root.join(&note.path).is_file(), "{label} moved the source");
-    }
-
-    let temp = tempfile::tempdir().expect("tempdir");
-    let backend = backend(&temp);
-    let note = backend
-        .add_note(MemoryStoreAddNoteParams {
-            root: global_root(),
-            title: Some("Missing source".to_string()),
-            slug: Some("missing-source".to_string()),
-            content: "source removed before consolidation".to_string(),
-        })
-        .await
-        .expect("add note");
-    let route = test_route();
-    backend
-        .run_stage1(
-            global_root(),
-            MemoryStageOneVersion::V1,
-            &route,
-            &FixtureStageOneProvider,
-        )
-        .await
-        .expect("stage one");
-    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-    fs::remove_file(root.join(&note.path)).expect("remove source");
-    let result = backend
-        .run_stage2(global_root(), &route, &MissingSourceStageTwoProvider)
-        .await;
-    assert!(result.is_err(), "missing source must fail closed");
 }
 
 #[tokio::test]
@@ -607,10 +353,10 @@ async fn health_initializes_layout_and_reports_store_stats() {
     assert_eq!(response.root_path, root.to_string_lossy());
     assert!(response.initialized);
     assert!(response.summary_exists);
-    assert!(response.memory_exists);
+    assert!(!response.memory_exists);
     assert_eq!(response.notes_count, 0);
     assert!(root.join(SUMMARY_FILE).is_file());
-    assert!(root.join(MEMORY_FILE).is_file());
+    assert!(!root.join(MEMORY_FILE).exists());
     assert!(root.join(NOTES_DIR).is_dir());
     assert!(root.join("audit").is_dir());
 }
@@ -675,7 +421,7 @@ async fn reset_clears_store_contents_preserves_layout_and_soul_boundary() {
 
     assert!(outside_file.is_file());
     assert!(root.join(SUMMARY_FILE).is_file());
-    assert!(root.join(MEMORY_FILE).is_file());
+    assert!(!root.join(MEMORY_FILE).exists());
     assert!(root.join(NOTES_DIR).is_dir());
     assert!(!root.join(note.path).exists());
     assert_eq!(

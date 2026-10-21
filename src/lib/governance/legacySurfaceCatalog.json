@@ -1,6 +1,39 @@
 {
   "imports": [
     {
+      "id": "retired-recents-file-only",
+      "classification": "dead",
+      "description": "Recents 已迁入统一 threadOutputs 产物 union；旧 file-only selector/hook 与专用测试不得恢复为第二条目录链。",
+      "targets": [
+        "src/components/agent/chat/workspace/right-surface/threadOutputFiles.ts",
+        "src/components/agent/chat/workspace/right-surface/threadOutputFiles.test.ts",
+        "src/components/agent/chat/workspace/right-surface/useThreadOutputFiles.ts",
+        "src/components/agent/chat/workspace/right-surface/useThreadOutputFiles.test.tsx"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "id": "retired-workbench-recovery",
+      "classification": "dead",
+      "description": "Workbench Recovery 专用面板、合成 prompt 与专用正向测试已删除；失败事实使用 canonical timeline，续聊使用同一 Composer",
+      "targets": [
+        "src/components/agent/chat/workspace/CodingWorkbenchRecoveryPanel.tsx",
+        "src/components/agent/chat/workspace/codingWorkbenchRecovery.ts",
+        "src/components/agent/chat/workspace/codingWorkbenchRecovery.unit.test.ts"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "id": "retired-workbench-logs",
+      "classification": "dead",
+      "description": "Canvas 独立日志副本与专用正向测试已删除；命令、审批和变更继续消费 canonical 时间线与 Changes，不得恢复平行日志面板",
+      "targets": [
+        "src/components/agent/chat/workspace/CodingWorkbenchLogPanel.tsx",
+        "src/components/agent/chat/workspace/CodingWorkbenchLogPanel.test.tsx"
+      ],
+      "allowedPaths": []
+    },
+    {
       "id": "retired-local-conversation-import",
       "classification": "dead",
       "description": "Lime 专属本地会话导入 RPC、runtime、GUI、metadata 特例与专用 fixture 已删除；canonical 历史只走同一 Thread/Turn/Item owner，Codex externalAgentConfig 与 project/import 保留",
@@ -1599,7 +1632,7 @@
     {
       "id": "agent-chat-canvas-workbench-output-lead-entry",
       "classification": "dead",
-      "description": "已删除的旧 CanvasWorkbenchOutputLead 平行输出 lead；编程工作台输出修复 current 入口统一收敛到 CodeReviewSummaryPanel 与 CanvasWorkbenchLayout outputView",
+      "description": "已删除的旧 CanvasWorkbenchOutputLead 平行输出 lead；失败事实统一由 canonical timeline、Summary/BackgroundTerminalList 与 Composer 承载",
       "targets": [
         "src/components/agent/chat/workspace/CanvasWorkbenchOutputLead.tsx"
       ],
@@ -2731,6 +2764,22 @@
         "src/lib/sceneapp/storage.ts"
       ],
       "allowedPaths": []
+    },
+    {
+      "id": "retired-workbench-outputs",
+      "classification": "dead",
+      "description": "Codex 使用 Summary 与后台终端入口承接命令输出；旧独立 Outputs 面板、审批/诊断副本与逐进程控制已删除，不得恢复平行 surface。",
+      "targets": [
+        "src/components/agent/chat/workspace/CodingWorkbenchOutputPanel.tsx",
+        "src/components/agent/chat/workspace/CodingWorkbenchOutputPanel.test.tsx",
+        "src/components/agent/chat/workspace/CodingWorkbenchActionPanel.tsx",
+        "src/components/agent/chat/workspace/CodingWorkbenchDiagnosticPanel.tsx",
+        "src/components/agent/chat/workspace/codingWorkbenchStatus.tsx",
+        "src/components/agent/chat/workspace/codingWorkbenchStatusModel.ts",
+        "src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchUtilityPanel.tsx",
+        "src/components/agent/chat/components/CanvasWorkbenchLayout.outputs.test.tsx"
+      ],
+      "allowedPaths": []
     }
   ],
   "commands": [
@@ -3237,6 +3286,35 @@
     }
   ],
   "frontendText": [
+    {
+      "id": "retired-workbench-recovery-contract",
+      "classification": "dead",
+      "description": "禁止恢复 Workbench 专用修复入口和无消费者 metadata；不限制 canonical 失败恢复、Composer 或 checkpoint owner",
+      "patterns": [
+        "CodingWorkbenchRecovery",
+        "codingWorkbenchRecovery",
+        "coding-workbench-recovery",
+        "coding_workbench_recovery",
+        "onSubmitRecoveryPrompt",
+        "agentChat.canvasWorkbench.coding.recovery."
+      ],
+      "includePathPrefixes": ["src/components/agent/chat/"],
+      "allowedPaths": []
+    },
+    {
+      "id": "retired-workbench-log-projection",
+      "classification": "dead",
+      "description": "独立 Workbench 日志页签和 logView 接线已删除，执行历史只消费 canonical timeline；诊断、审批及后台终端保留各自 current owner",
+      "patterns": [
+        "CodingWorkbenchLogPanel",
+        "coding-workbench-log-projection",
+        "canvas-workbench-panel-logs",
+        "agentChat.workspaceSession.logView"
+      ],
+      "regexPatterns": ["\\blogView\\b"],
+      "includePathPrefixes": ["src/components/agent/chat/"],
+      "allowedPaths": []
+    },
     {
       "id": "retired-conversation-import-renderer-contract",
       "classification": "dead",
@@ -4579,7 +4657,7 @@
     {
       "id": "agent-chat-canvas-workbench-output-lead-symbols",
       "classification": "dead",
-      "description": "旧 CanvasWorkbenchOutputLead 输出 lead、修复信号 builder 与旧 data-testid 不得回流；current 只允许 CodeReviewSummaryPanel 承载失败输出继续修复入口",
+      "description": "旧 CanvasWorkbenchOutputLead 输出 lead、修复信号 builder 与旧 data-testid 不得回流；失败事实由 canonical timeline、Summary/BackgroundTerminalList 与 Composer 承载",
       "patterns": [
         "CanvasWorkbenchOutputLead",
         "buildCodeFixSignalFromThreadItems",
@@ -4626,15 +4704,9 @@
         "code_orchestrated"
       ],
       "includePathPrefixes": [
-        "src/components/agent/chat/workspace/codingSessionOverviewProjection.ts",
         "src/components/agent/chat/workspace/workspaceConversationCodingViews.tsx",
         "src/components/agent/chat/workspace/workspaceConversationSessionViewModel.ts",
         "src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.tsx",
-        "src/components/agent/chat/workspace/CodingWorkbenchOutputPanel.tsx",
-        "src/components/agent/chat/workspace/CodingWorkbenchLogPanel.tsx",
-        "src/components/agent/chat/workspace/CodingWorkbenchActionPanel.tsx",
-        "src/components/agent/chat/workspace/CodingWorkbenchDiagnosticPanel.tsx",
-        "src/components/agent/chat/components/CanvasSessionOverviewPanel.tsx",
         "src/components/agent/chat/components/CanvasWorkbenchLayout.tsx",
         "src/components/agent/chat/components/canvas-workbench/"
       ],

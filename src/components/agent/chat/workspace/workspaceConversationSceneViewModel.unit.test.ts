@@ -1,12 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AgentRuntimeFileCheckpointThreadSummary } from "@/lib/api/agentRuntime/sessionTypes";
-import type { AgentThreadTurn } from "@/lib/api/agentProtocol";
 import { projectCodingWorkbenchViewFromEvents } from "@limecloud/agent-runtime-projection";
 import {
   buildCanvasWorkbenchChangeViewFromCodingProjection,
-  buildOutputHeaderViewModel,
   buildQuotedReplyText,
-  buildSessionHeaderViewModel,
+  buildSessionSummaryViewModel,
   buildSessionRuntimeCountersFromCodingProjection,
   buildSessionRuntimeProjectionIdentity,
   buildSessionRuntimeProjectionState,
@@ -14,25 +12,8 @@ import {
   resolveNextSessionRuntimeProjectionState,
   resolvePathLeaf,
   resolveSessionRuntimeProjectionStatus,
-  resolveSessionStatusBadge,
   shouldConsiderSessionRuntimeProjectionDeferral,
-  shortenSessionText,
 } from "./workspaceConversationSceneViewModel";
-
-function createThreadTurn(
-  overrides: Partial<AgentThreadTurn> = {},
-): AgentThreadTurn {
-  return {
-    id: "turn-1",
-    thread_id: "thread-1",
-    prompt_text: "请检查测试分层",
-    status: "running",
-    started_at: "2026-01-01T00:00:00Z",
-    created_at: "2026-01-01T00:00:00Z",
-    updated_at: "2026-01-01T00:00:00Z",
-    ...overrides,
-  };
-}
 
 function createCheckpointSummary(
   overrides: Partial<AgentRuntimeFileCheckpointThreadSummary> = {},
@@ -61,38 +42,6 @@ function createTranslate() {
 }
 
 describe("workspaceConversationSceneViewModel", () => {
-  it("应归一化并截断 session 文本", () => {
-    expect(shortenSessionText("  第一行\n第二行  ")).toBe("第一行 第二行");
-    expect(shortenSessionText("")).toBe("");
-    expect(shortenSessionText("abcdef", 4)).toBe("abc…");
-  });
-
-  it("应解析 session 状态 badge，并允许翻译函数覆盖 label", () => {
-    expect(resolveSessionStatusBadge("running")).toEqual({
-      label: "执行中",
-      tone: "accent",
-    });
-    expect(resolveSessionStatusBadge("completed")).toEqual({
-      label: "已完成",
-      tone: "success",
-    });
-    expect(
-      resolveSessionStatusBadge(
-        "failed",
-        ((key: string) => `t:${key}`) as never,
-      ),
-    ).toEqual({
-      label: "t:agentChat.sessionOverview.status.turn.failed",
-      tone: "default",
-    });
-    for (const status of ["canceled", "cancelled", "interrupted"] as const) {
-      expect(resolveSessionStatusBadge(status)).toEqual({
-        label: "已中断",
-        tone: "default",
-      });
-    }
-  });
-
   it("应解析跨平台路径末尾名称", () => {
     expect(resolvePathLeaf("C:\\Users\\lime\\project")).toBe("project");
     expect(resolvePathLeaf("/tmp/project/")).toBe("project");
@@ -111,7 +60,7 @@ describe("workspaceConversationSceneViewModel", () => {
     ).toBeNull();
   });
 
-  it("应构造 session header 与 output header 的纯 view model", () => {
+  it("应构造 session header 与 workspace change 的纯 view model", () => {
     const t = createTranslate();
     const codingView = projectCodingWorkbenchViewFromEvents({
       executionEvents: [],
@@ -165,42 +114,11 @@ describe("workspaceConversationSceneViewModel", () => {
       fileCheckpointSummary: createCheckpointSummary({ count: 1 }),
       pendingActionCount: 1,
     });
-    const labels = {
-      inProgressItemCountLabel: "1",
-      generatedFileCountLabel: "1",
-      pendingActionCountLabel: "1",
-    };
-    const sessionView = buildSessionHeaderViewModel({
+    const sessionView = buildSessionSummaryViewModel({
       t,
-      currentSessionTurn: createThreadTurn({
-        prompt_text: "  需要\n继续推进  ",
-      }),
-      currentSessionStatus: resolveSessionStatusBadge("running", t),
       counters,
-      labels,
-      pendingActionCount: 1,
     });
-    const outputView = buildOutputHeaderViewModel({
-      t,
-      counters: {
-        ...counters,
-        outputItemCount: 120,
-      },
-    });
-
-    expect(sessionView).toMatchObject({
-      tabBadge: "agentChat.workspaceSession.badge.inProgress:1",
-      subtitle: "agentChat.workspaceSession.subtitle.current:需要 继续推进",
-      badges: expect.arrayContaining([
-        expect.objectContaining({ key: "session-pending-actions" }),
-      ]),
-    });
-    expect(sessionView?.summaryStats).toHaveLength(3);
-    expect(outputView).toMatchObject({
-      enabled: true,
-      tabBadge: "99+",
-      tabBadgeTone: "rose",
-    });
+    expect(sessionView).toEqual({});
   });
 
   it("应构造工作区 header，并标记路径异常", () => {
@@ -211,13 +129,12 @@ describe("workspaceConversationSceneViewModel", () => {
         workspaceHealthError: false,
       }),
     ).toMatchObject({
-      title: "项目工作区文件",
-      tabBadge: "project",
-      tabBadgeTone: "sky",
-      summaryStats: [
-        expect.objectContaining({ key: "workspace-root", value: "project" }),
-        expect.objectContaining({ key: "workspace-binding", value: "已连接" }),
-      ],
+      panelCopy: expect.objectContaining({
+        unavailableText: "当前工作区路径不可用，暂时无法浏览项目文件。",
+        emptyText: "当前工作区 project 没有可浏览的文件。",
+        loadingText: "正在加载目录...",
+        emptyDirectoryText: "暂无目录内容。",
+      }),
     });
     expect(
       buildWorkspaceHeaderView({
@@ -226,11 +143,10 @@ describe("workspaceConversationSceneViewModel", () => {
         workspaceHealthError: false,
       }),
     ).toMatchObject({
-      tabBadge: "路径缺失",
-      tabBadgeTone: "rose",
-      badges: expect.arrayContaining([
-        expect.objectContaining({ key: "workspace-missing" }),
-      ]),
+      panelCopy: expect.objectContaining({
+        unavailableText: "当前工作区路径不可用，暂时无法浏览项目文件。",
+        sectionEyebrow: "项目目录",
+      }),
     });
   });
 
@@ -482,7 +398,7 @@ describe("workspaceConversationSceneViewModel", () => {
       },
     ]);
     expect(codingView.actions[0]?.actionId).toBe("action-approve-command");
-    expect(codingView.ui.preferredTab).toBe("outputs");
+    expect(codingView.ui.preferredTab).toBe("summary");
   });
 
   it("应从 current coding projection 计算 workbench 输出和进度计数", () => {
@@ -531,8 +447,6 @@ describe("workspaceConversationSceneViewModel", () => {
         pendingActionCount: 1,
       }),
     ).toEqual({
-      outputItemCount: 3,
-      failedOutputItemCount: 1,
       inProgressItemCount: 1,
       generatedFileCount: 0,
       hasRuntimeFileChanges: false,

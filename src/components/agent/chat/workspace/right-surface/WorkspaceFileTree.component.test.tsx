@@ -103,6 +103,31 @@ async function press(target: HTMLElement, key: string) {
 }
 
 describe("WorkspaceFileTree 真实搜索 DOM", () => {
+  it("折叠搜索目录后加选仍消费首个文件，隐藏行不会丢失身份", async () => {
+    search.mockResolvedValue([hit("src/one.ts"), hit("other.ts")]);
+    render();
+    await query("files");
+    act(() => row("/work/src/one.ts").click());
+    select.mockClear();
+    const folder = row("/work/src");
+    act(() => folder.focus());
+    await press(folder, "ArrowLeft");
+    expect(row("/work/src/one.ts")).toBeUndefined();
+    expect(select).not.toHaveBeenCalled();
+    await act(async () =>
+      row("/work/other.ts").dispatchEvent(
+        new MouseEvent("click", { bubbles: true, metaKey: true }),
+      ),
+    );
+    expect(select).toHaveBeenCalledExactlyOnceWith("/work/src/one.ts", {
+      isPreview: true,
+    });
+    expect(row("/work/other.ts").getAttribute("aria-selected")).toBe("true");
+    await press(folder, "ArrowRight");
+    expect(row("/work/src/one.ts").getAttribute("aria-selected")).toBe("true");
+    expect(select).toHaveBeenCalledTimes(1);
+  });
+
   it("input 经 current fuzzy gateway 进入共享树，层级/键盘与preview打开同路", async () => {
     search.mockResolvedValue([
       hit("src/components/one.ts"),

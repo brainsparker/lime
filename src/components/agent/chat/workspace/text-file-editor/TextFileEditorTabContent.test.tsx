@@ -9,7 +9,9 @@ import type { ThreadSidePanelTab } from "../right-surface/threadSidePanelTabs";
 const storage = vi.hoisted(() => ({
   read: vi.fn(),
   write: vi.fn(),
+  reveal: vi.fn(),
 }));
+vi.mock("@/lib/api/fileSystem", () => ({ revealPathInFinder: storage.reveal }));
 vi.mock("@/lib/api/textFileStorage", () => ({
   createTextFileStorage: () => storage,
 }));
@@ -59,6 +61,57 @@ afterEach(async () => {
 });
 
 describe("文件标签草稿接线", () => {
+  it.each([true, false])(
+    "工具栏打开先保存同一controller，保存成功=%s决定是否启动外部动作",
+    async (saved) => {
+      let finish!: (result: { outcome: "saved"; mtimeMs: number }) => void;
+      let fail!: (error: Error) => void;
+      storage.write.mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            finish = resolve;
+            fail = reject;
+          }),
+      );
+      await act(async () =>
+        root.render(
+          <TextFileEditorTabContent
+            path="/work/notes.txt"
+            workspaceRoot="/work"
+            tab={{ tabId: "file:/work/notes.txt", kind: "files" }}
+            initialDraft={{
+              content: "local",
+              document: { kind: "ready", baseContent: "base" },
+            }}
+          />,
+        ),
+      );
+      const open = host.querySelector<HTMLButtonElement>(
+        'button[aria-label="workspace.artifactPreviewHeader.open"]',
+      )!;
+      await act(async () => open.click());
+      expect(storage.write).toHaveBeenCalledWith(
+        "local",
+        1,
+        expect.any(AbortSignal),
+      );
+      expect(storage.reveal).not.toHaveBeenCalled();
+      expect(open.disabled).toBe(true);
+      await act(async () => {
+        if (saved) finish({ outcome: "saved", mtimeMs: 2 });
+        else fail(new Error("disk full"));
+      });
+      expect(storage.reveal).toHaveBeenCalledTimes(saved ? 1 : 0);
+      if (saved) expect(storage.reveal).toHaveBeenCalledWith("/work/notes.txt");
+      expect(
+        host
+          .querySelector('[data-testid="text-file-editor"]')
+          ?.getAttribute("data-dirty"),
+      ).toBe(saved ? "false" : "true");
+      expect(open.disabled).toBe(false);
+    },
+  );
+
   it.each(["edit", "accept", "reject"] as const)(
     "冲突审阅%s使用同一控制器并保持原编辑器实例",
     async (action) => {

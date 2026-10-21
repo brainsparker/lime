@@ -141,6 +141,13 @@ pub trait RuntimeSessionTask: Send + Sync + 'static {
     fn abort(&self, _context: RuntimeSessionTaskContext) -> BoxFuture<'static, ()> {
         Box::pin(async {})
     }
+
+    /// Called only for an explicit user Turn interrupt, after the task has
+    /// stopped. Replacements for review/compaction use `abort` without this
+    /// lifecycle hook.
+    fn interrupt(&self, _context: RuntimeSessionTaskContext) -> BoxFuture<'static, ()> {
+        Box::pin(async {})
+    }
 }
 
 #[derive(Clone)]
@@ -159,6 +166,7 @@ pub struct RuntimeSessionClosureTask {
             + Sync,
     >,
     abort: Arc<dyn Fn(RuntimeSessionTaskContext) -> BoxFuture<'static, ()> + Send + Sync>,
+    interrupt: Arc<dyn Fn(RuntimeSessionTaskContext) -> BoxFuture<'static, ()> + Send + Sync>,
 }
 
 impl RuntimeSessionClosureTask {
@@ -181,6 +189,7 @@ impl RuntimeSessionClosureTask {
             mailbox_loader: None,
             run: Arc::new(run),
             abort: Arc::new(|_context| Box::pin(async {})),
+            interrupt: Arc::new(|_context| Box::pin(async {})),
         }
     }
 
@@ -205,6 +214,14 @@ impl RuntimeSessionClosureTask {
         abort: impl Fn(RuntimeSessionTaskContext) -> BoxFuture<'static, ()> + Send + Sync + 'static,
     ) -> Self {
         self.abort = Arc::new(abort);
+        self
+    }
+
+    pub fn with_interrupt(
+        mut self,
+        interrupt: impl Fn(RuntimeSessionTaskContext) -> BoxFuture<'static, ()> + Send + Sync + 'static,
+    ) -> Self {
+        self.interrupt = Arc::new(interrupt);
         self
     }
 }
@@ -237,6 +254,10 @@ impl RuntimeSessionTask for RuntimeSessionClosureTask {
 
     fn abort(&self, context: RuntimeSessionTaskContext) -> BoxFuture<'static, ()> {
         (self.abort)(context)
+    }
+
+    fn interrupt(&self, context: RuntimeSessionTaskContext) -> BoxFuture<'static, ()> {
+        (self.interrupt)(context)
     }
 }
 
@@ -322,6 +343,7 @@ struct RuntimeSessionStepState {
     next_step_index: u64,
     context_epoch: u64,
     token_usage: RuntimeSessionTokenUsage,
+    context_input_tokens: u64,
     rollover_requested: bool,
 }
 
@@ -458,6 +480,11 @@ impl RuntimeSessionTaskContext {
 
     pub async fn token_usage(&self) -> RuntimeSessionTokenUsage {
         self.input_handle().token_usage().await
+    }
+
+    /// Input tokens observed since the current context window was opened.
+    pub async fn context_input_tokens(&self) -> u64 {
+        self.input_handle().context_input_tokens().await
     }
 
     pub async fn request_context_rollover(&self) {
@@ -652,6 +679,7 @@ impl RuntimeSessionInputHandle {
         let mut step = self.state.step.lock().await;
         if step.rollover_requested {
             step.context_epoch = step.context_epoch.saturating_add(1);
+            step.context_input_tokens = 0;
             step.rollover_requested = false;
         }
         step.next_step_index = step.next_step_index.saturating_add(1);
@@ -667,6 +695,7 @@ impl RuntimeSessionInputHandle {
     pub async fn advance_context_epoch(&self) -> u64 {
         let mut step = self.state.step.lock().await;
         step.context_epoch = step.context_epoch.saturating_add(1);
+        step.context_input_tokens = 0;
         step.rollover_requested = false;
         step.context_epoch
     }
@@ -679,6 +708,7 @@ impl RuntimeSessionInputHandle {
         cache_write_input: u64,
     ) {
         let mut step = self.state.step.lock().await;
+        step.context_input_tokens = step.context_input_tokens.saturating_add(input);
         step.token_usage.input_tokens = step.token_usage.input_tokens.saturating_add(input);
         step.token_usage.output_tokens = step.token_usage.output_tokens.saturating_add(output);
         step.token_usage.reasoning_tokens =
@@ -691,6 +721,10 @@ impl RuntimeSessionInputHandle {
 
     pub async fn token_usage(&self) -> RuntimeSessionTokenUsage {
         self.state.step.lock().await.token_usage.clone()
+    }
+
+    pub async fn context_input_tokens(&self) -> u64 {
+        self.state.step.lock().await.context_input_tokens
     }
 
     pub async fn request_context_rollover(&self) {

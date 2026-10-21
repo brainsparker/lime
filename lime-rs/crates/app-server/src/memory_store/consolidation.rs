@@ -4,26 +4,21 @@ use tokio_util::sync::CancellationToken;
 const PHASE2_LEASE_SECONDS: i64 = 300;
 const PHASE2_HEARTBEAT_SECONDS: u64 = 30;
 const STAGE2_MAX_INPUTS: usize = 20;
-const STAGE2_MAX_OUTPUT_BYTES: usize = 128 * 1024;
-const STAGE2_MAX_MEMORY_CHARS: usize = 9_000;
-const STAGE2_SYSTEM_PROMPT: &str = "You are a Codex memory consolidation agent. You receive immutable stage-1 memory snapshots. Return only the strict JSON artifact. Accept only durable user decisions and workflow facts, redact secrets, and send uncertain or conflicting entries to review. Do not request tools, MCP, plugins, or additional context.";
+const MAX_UNUSED_DAYS: i64 = 30;
 pub(super) const PROCESSED_NOTES_DIR: &str = "extensions/ad_hoc/processed";
-pub(super) const PROCESSED_ROLLOUT_SUMMARIES_DIR: &str = "rollout_summaries/processed";
 pub(super) const REVIEW_NOTES_DIR: &str = "extensions/ad_hoc/review";
 
-/// Runs the current phase-2 artifact pipeline. The model proposes only typed artifacts;
-/// this module validates source identity and performs every filesystem/state mutation.
 pub(super) async fn run_stage2(
     backend: &LocalMemoryBackend,
     params: MemoryStoreRootParams,
     route: &MemoryStageOneRoute,
-    provider: &dyn MemoryStageTwoProvider,
+    agent: &dyn MemoryAgent,
 ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
     run_stage2_with_heartbeat(
         backend,
         params,
         route,
-        provider,
+        agent,
         Duration::from_secs(PHASE2_HEARTBEAT_SECONDS),
     )
     .await
@@ -33,7 +28,7 @@ async fn run_stage2_with_heartbeat(
     backend: &LocalMemoryBackend,
     params: MemoryStoreRootParams,
     route: &MemoryStageOneRoute,
-    provider: &dyn MemoryStageTwoProvider,
+    agent: &dyn MemoryAgent,
     heartbeat_interval: Duration,
 ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
     let root = backend.resolve_root(&params)?;
@@ -49,7 +44,6 @@ async fn run_stage2_with_heartbeat(
             "memory consolidation is already running for this scope",
         ));
     }
-
     let heartbeat_cancel = CancellationToken::new();
     let heartbeat_lost = CancellationToken::new();
     let heartbeat_task = {
@@ -65,27 +59,22 @@ async fn run_stage2_with_heartbeat(
                 tokio::select! {
                     _ = cancel.cancelled() => break,
                     _ = interval.tick() => {
-                        match state.heartbeat_phase2(&scope_key, &owner, PHASE2_LEASE_SECONDS) {
-                            Ok(true) => {}
-                            Ok(false) | Err(_) => {
-                                heartbeat_lost.cancel();
-                                break;
-                            }
+                        if !matches!(state.heartbeat_phase2(&scope_key, &owner, PHASE2_LEASE_SECONDS), Ok(true)) {
+                            heartbeat_lost.cancel();
+                            break;
                         }
                     }
                 }
             }
         })
     };
-
-    // Dropping this future must not leave a detached task renewing the lease forever.
     let _heartbeat_guard = heartbeat_cancel.clone().drop_guard();
     let _execution_guard = heartbeat_lost.clone().drop_guard();
     let result = run_stage2_inner(
         backend,
-        params,
+        params.scope,
         route,
-        provider,
+        agent,
         &root,
         &scope_key,
         &owner,
@@ -94,30 +83,22 @@ async fn run_stage2_with_heartbeat(
     .await;
     heartbeat_cancel.cancel();
     let _ = heartbeat_task.await;
-    if heartbeat_lost.is_cancelled() {
-        backend
-            .state
-            .finish_phase2(
-                &scope_key,
-                &owner,
-                false,
-                Some("memory consolidation lease heartbeat was lost"),
-            )
-            .map_err(backend_error)?;
-        return Err(backend_error(
-            "memory consolidation lease heartbeat was lost",
-        ));
-    }
     match result {
-        Ok((result, selected_sources)) => {
+        Ok((result, selected)) => {
+            let watermark = selected
+                .iter()
+                .filter_map(|s| {
+                    s.source_updated_at.parse::<i64>().ok().or_else(|| {
+                        chrono::DateTime::parse_from_rfc3339(&s.source_updated_at)
+                            .ok()
+                            .map(|d| d.timestamp())
+                    })
+                })
+                .max()
+                .unwrap_or(0);
             if !backend
                 .state
-                .commit_phase2_snapshot(
-                    &scope_key,
-                    &owner,
-                    Utc::now().timestamp(),
-                    &selected_sources,
-                )
+                .commit_phase2_snapshot(&scope_key, &owner, watermark, &selected)
                 .map_err(backend_error)?
             {
                 return Err(backend_error(
@@ -127,241 +108,73 @@ async fn run_stage2_with_heartbeat(
             Ok(result)
         }
         Err(error) => {
-            backend
-                .state
-                .finish_phase2(&scope_key, &owner, false, Some(&error.to_string()))
-                .map_err(backend_error)?;
-            Err(error)
+            // A worker that has not shut down can still mutate its workspace. Do not
+            // release its lease and admit another writer while that worker is alive.
+            if error.shutdown_complete {
+                if let Err(cleanup) = workspace::remove_symlinks(&root) {
+                    tracing::warn!(%cleanup, "failed removing memory workspace symbolic links");
+                }
+                backend
+                    .state
+                    .finish_phase2(&scope_key, &owner, false, Some(&error.cause.to_string()))
+                    .map_err(backend_error)?;
+            }
+            Err(error.cause)
         }
     }
 }
 
 async fn run_stage2_inner(
     backend: &LocalMemoryBackend,
-    params: MemoryStoreRootParams,
+    scope: MemoryStoreScope,
     route: &MemoryStageOneRoute,
-    provider: &dyn MemoryStageTwoProvider,
+    agent: &dyn MemoryAgent,
     root: &Path,
     scope_key: &str,
     owner: &str,
     cancellation: &CancellationToken,
-) -> Result<(MemoryStageOneRunResult, Vec<state::StageTwoInput>), RuntimeCoreError> {
-    let inputs = backend
+) -> Result<(MemoryStageOneRunResult, Vec<state::StageTwoInput>), MemoryAgentError> {
+    let mut inputs = backend
         .state
-        .stage2_candidates(scope_key, STAGE2_MAX_INPUTS)
+        .phase2_inputs_for_consolidation(scope_key, STAGE2_MAX_INPUTS, MAX_UNUSED_DAYS)
         .map_err(backend_error)?;
-    if inputs.is_empty() {
-        return Ok((MemoryStageOneRunResult::default(), Vec::new()));
-    }
-    let provider_inputs = inputs
-        .iter()
-        .map(|input| MemoryStageTwoInput {
-            source_path: input.source_path.clone(),
-            raw_memory: input.raw_memory.clone(),
-            rollout_summary: input.rollout_summary.clone(),
-            rollout_slug: input.rollout_slug.clone(),
-        })
-        .collect::<Vec<_>>();
-    let prompt = serde_json::to_string(
-        &provider_inputs
-            .iter()
-            .map(|input| {
-                serde_json::json!({
-                    "source_path": input.source_path,
-                    "raw_memory": input.raw_memory,
-                    "rollout_summary": input.rollout_summary,
-                    "rollout_slug": input.rollout_slug,
-                })
+    inputs.retain(|input| root.join(&input.source_path).is_file());
+    workspace::prepare(root).await?;
+    workspace::sync_inputs(root, &inputs)?;
+    let changed = workspace::write_diff(root).await?;
+    if changed || workspace::validate(root).is_err() {
+        agent
+            .run(MemoryAgentRequest {
+                cancellation: cancellation.clone(),
+                route: route.clone(),
+                root: root.to_path_buf(),
+                prompt: workspace::prompt(root),
             })
-            .collect::<Vec<_>>(),
-    )
-    .map_err(|error| backend_error(format!("serialize memory stage-2 inputs: {error}")))?;
-    let output = provider
-        .sample(MemoryStageTwoProviderRequest {
-            cancellation: cancellation.clone(),
-            session_id: route.session_id.clone(),
-            thread_id: route.thread_id.clone(),
-            turn_id: "memory-stage2-consolidation".to_string(),
-            provider: route.provider.clone(),
-            model: route.model.clone(),
-            reasoning_effort: route.reasoning_effort.clone(),
-            service_tier: route.service_tier.clone(),
-            api_version: route.api_version.clone(),
-            route_protocol: route.route_protocol.clone(),
-            credential_ref: route.credential_ref.clone(),
-            cwd: route.cwd.clone().or_else(|| Some(root.to_path_buf())),
-            root_path: root.to_path_buf(),
-            inputs: provider_inputs,
-            system_prompt: STAGE2_SYSTEM_PROMPT.to_string(),
-            user_prompt: format!(
-                "Consolidate these stage-1 snapshots into a durable artifact:\n{prompt}"
-            ),
-            output_schema: stage_two_output::output_schema(),
-            strict: true,
-        })
-        .await?;
-    // The worker may have lost its lease while the model was running. Confirm ownership
-    // before parsing/applying the proposal, rather than discovering the loss after writes.
+            .await?;
+    }
+    // The Agent contract includes successful shutdown, not just a provider response.
+    workspace::validate(root)?;
     if cancellation.is_cancelled()
         || !backend
             .state
             .heartbeat_phase2(scope_key, owner, PHASE2_LEASE_SECONDS)
             .map_err(backend_error)?
     {
-        return Err(backend_error(
-            "memory consolidation lease was lost before artifact validation",
-        ));
-    }
-    if output.len() > STAGE2_MAX_OUTPUT_BYTES {
-        return Err(backend_error("memory stage-2 output exceeds size limit"));
-    }
-    let output = stage_two_output::parse(&output).map_err(backend_error)?;
-    let allowed = inputs
-        .iter()
-        .map(|input| input.source_path.as_str())
-        .collect::<std::collections::HashSet<_>>();
-    let mut seen = std::collections::HashSet::new();
-    // Validate the complete model proposal before moving or writing anything. A malformed
-    // second entry must not leave the first accepted source half-archived.
-    for entry in &output.entries {
-        let source_relative = validate_relative_path(&entry.source_path)
-            .map_err(|_| backend_error("memory stage-2 source path is invalid"))?;
-        if source_relative.is_absolute()
-            || source_relative.components().any(|component| {
-                matches!(
-                    component,
-                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
-                )
-            })
-            || !allowed.contains(entry.source_path.as_str())
-            || !seen.insert(entry.source_path.clone())
-        {
-            return Err(backend_error(
-                "memory stage-2 output referenced an unknown or duplicate source",
-            ));
-        }
-        let source = root.join(&source_relative);
-        if !source.is_file() || is_symlink(&source)? {
-            return Err(backend_error(match entry.decision {
-                stage_two_output::Decision::Accept => {
-                    "memory stage-2 source is missing or symlinked"
-                }
-                stage_two_output::Decision::Review => {
-                    "memory stage-2 review source is missing or symlinked"
-                }
-            }));
-        }
-        let snapshot = inputs
-            .iter()
-            .find(|input| input.source_path == entry.source_path)
-            .expect("validated stage-2 source snapshot");
-        // This artifact pipeline still archives source files. A newer version must remain
-        // untouched for a later run rather than being moved by an older model proposal.
-        if !backend
-            .state
-            .stage2_snapshot_is_current(scope_key, snapshot)
-            .map_err(backend_error)?
-            || state::hash_content(&fs::read_to_string(&source).map_err(io_error)?)
-                != snapshot.content_hash
-        {
-            return Err(backend_error("memory stage-2 source snapshot changed"));
-        }
-        if entry.decision == stage_two_output::Decision::Accept
-            && entry
-                .memory
-                .as_ref()
-                .is_some_and(|memory| memory.chars().count() > STAGE2_MAX_MEMORY_CHARS)
-        {
-            return Err(backend_error(
-                "memory stage-2 memory artifact exceeds size limit",
-            ));
-        }
-    }
-    if cancellation.is_cancelled()
-        || !backend
-            .state
-            .heartbeat_phase2(scope_key, owner, PHASE2_LEASE_SECONDS)
-            .map_err(backend_error)?
-    {
-        return Err(backend_error(
-            "memory consolidation lease was lost before artifact writes",
-        ));
-    }
-    let processed_dir = root.join(PROCESSED_NOTES_DIR);
-    let processed_rollout_dir = root.join(PROCESSED_ROLLOUT_SUMMARIES_DIR);
-    let review_dir = root.join(REVIEW_NOTES_DIR);
-    fs::create_dir_all(&processed_dir).map_err(io_error)?;
-    fs::create_dir_all(&processed_rollout_dir).map_err(io_error)?;
-    fs::create_dir_all(&review_dir).map_err(io_error)?;
-    reject_symlink_chain(root, &processed_dir)?;
-    reject_symlink_chain(root, &processed_rollout_dir)?;
-    reject_symlink_chain(root, &review_dir)?;
-    let mut accepted = Vec::new();
-    let mut selected_sources = Vec::new();
-    let mut warnings = Vec::new();
-    let mut skipped_notes = 0;
-    let mut archived_notes = 0;
-    for entry in output.entries {
-        let snapshot = inputs
-            .iter()
-            .find(|input| input.source_path == entry.source_path)
-            .expect("validated stage-2 source snapshot");
-        let source_relative = validate_relative_path(&entry.source_path)
-            .map_err(|_| backend_error("memory stage-2 source path is invalid"))?;
-        match entry.decision {
-            stage_two_output::Decision::Accept => {
-                let source = root.join(&source_relative);
-                let target_dir = if entry.source_path.starts_with("rollout_summaries/") {
-                    &processed_rollout_dir
-                } else {
-                    &processed_dir
-                };
-                let archived_path = move_note(root, &source, target_dir)?;
-                let archived_relative = backend.relative_path(root, &archived_path)?;
-                let memory = entry.memory.expect("validated accepted memory artifact");
-                accepted.push(format!("- {} (source: {archived_relative})", memory.trim()));
-                selected_sources.push(snapshot.clone());
-                archived_notes += 1;
-            }
-            stage_two_output::Decision::Review => {
-                let source = root.join(&source_relative);
-                move_note(root, &source, &review_dir)?;
-                backend
-                    .state
-                    .mark_stage2_review(scope_key, snapshot)
-                    .map_err(backend_error)?;
-                skipped_notes += 1;
-                warnings.push(format!(
-                    "{}: {}",
-                    entry.source_path,
-                    entry.reason.unwrap_or_default()
-                ));
-            }
-        }
-    }
-    if !accepted.is_empty() {
-        append_memory_register(root, &accepted)?;
-        rewrite_summary(root, &accepted)?;
+        return Err(backend_error("memory consolidation lease lost before baseline reset").into());
     }
     audit::append_audit_event(
         root,
-        &audit::MemoryAuditEvent::consolidate(
-            params.scope,
-            accepted.len(),
-            skipped_notes,
-            archived_notes,
-            &warnings,
-            !accepted.is_empty(),
-        ),
+        &audit::MemoryAuditEvent::consolidate(scope, inputs.len(), 0, 0, &[], changed),
     )?;
+    workspace::reset_baseline(root).await?;
     Ok((
         MemoryStageOneRunResult {
             claimed: inputs.len(),
-            succeeded: accepted.len(),
-            no_output: skipped_notes,
+            succeeded: inputs.len(),
+            no_output: 0,
             failed: 0,
         },
-        selected_sources,
+        inputs,
     ))
 }
 

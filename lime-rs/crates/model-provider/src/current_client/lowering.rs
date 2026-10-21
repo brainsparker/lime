@@ -740,7 +740,7 @@ fn anthropic_message(
         CanonicalRole::Assistant => "assistant",
         _ => "user",
     };
-    let content = message
+    let mut content = message
         .content
         .iter()
         .filter_map(|part| match part {
@@ -776,6 +776,14 @@ fn anthropic_message(
             ContentPart::RawResponseItem { .. } => None,
         })
         .collect::<Vec<_>>();
+    for part in &message.content {
+        if let ContentPart::RawResponseItem { item } = part {
+            // The network boundary validates the producer and protocol first.
+            if let Ok(parts) = super::native_history::parts(item, "anthropic") {
+                content.extend_from_slice(parts);
+            }
+        }
+    }
     vec![json!({ "role": role, "content": content })]
 }
 

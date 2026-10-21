@@ -12,6 +12,24 @@ interface SettingsSearchDocument {
 // 只登记 current 页面上的静态消息；不索引用户资料、配置值或凭证。
 export const settingsSearchDocuments: readonly SettingsSearchDocument[] = [
   {
+    section: SettingsTabs.Browser,
+    targetId: "browser-web-target",
+    labelKey: "settings.browser.web",
+    termKeys: ["settings.browser.inApp", "settings.browser.external"],
+  },
+  {
+    section: SettingsTabs.Browser,
+    targetId: "browser-local-target",
+    labelKey: "settings.browser.local",
+    termKeys: ["settings.browser.localDescription"],
+  },
+  {
+    section: SettingsTabs.KeyboardShortcuts,
+    targetId: "keyboard-external-browser-link",
+    labelKey: "settings.keyboardShortcuts.externalLink",
+    termKeys: ["settings.keyboardShortcuts.externalLinkDescription"],
+  },
+  {
     section: SettingsTabs.Profile,
     targetId: "profile-displayName",
     labelKey: "settings.profile.field.displayName.label",

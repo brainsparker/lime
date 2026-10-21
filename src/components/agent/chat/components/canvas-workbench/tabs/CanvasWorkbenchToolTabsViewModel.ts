@@ -14,8 +14,7 @@ export interface CanvasWorkbenchToolTabProjectionInput {
   documentDiffLineCount: number;
   failedChangeItemCount: number;
   utilityTabs?: {
-    outputs?: boolean;
-    logs?: boolean;
+    summary?: boolean;
   };
   openedToolTabs: CanvasWorkbenchOpenedToolTab[];
   translateWorkbench: CanvasWorkbenchTranslation;
@@ -88,21 +87,12 @@ function buildCodingUtilityTabs(
   translateWorkbench: CanvasWorkbenchTranslation,
 ): CanvasWorkbenchTopTab[] {
   const tabs: CanvasWorkbenchTopTab[] = [];
-  if (utilityTabs?.outputs) {
+  if (utilityTabs?.summary) {
     tabs.push({
-      key: "outputs",
+      key: "summary",
       label: translateCanvasWorkbenchText(
         translateWorkbench,
-        "agentChat.canvasWorkbench.coding.tabs.outputs",
-      ),
-    });
-  }
-  if (utilityTabs?.logs) {
-    tabs.push({
-      key: "logs",
-      label: translateCanvasWorkbenchText(
-        translateWorkbench,
-        "agentChat.canvasWorkbench.coding.tabs.logs",
+        "agentChat.canvasWorkbench.coding.tabs.summary",
       ),
     });
   }

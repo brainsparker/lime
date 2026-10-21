@@ -7,9 +7,11 @@ use agent_protocol::{
 };
 use serde_json::{json, Value};
 
-use super::{scan_rollout, RolloutStore};
+use super::{scan_rollout, RolloutStore, ROLLOUT_SCHEMA_VERSION};
 
+mod compression;
 mod digest;
+mod runtime;
 
 fn thread(id: &str) -> Thread {
     Thread {
@@ -74,6 +76,8 @@ fn append(
         source.thread_id.as_str(),
         fingerprint,
         &changes(sequence),
+        &[],
+        None,
     )
 }
 
@@ -277,13 +281,14 @@ fn crash_tail_repair_rejects_a_complete_semantically_invalid_record() {
     append(&store, &relative_path, &source, 1, &fingerprint('a')).expect("append sequence 1");
     let invalid = serde_json::to_vec(&json!({
         "type": "thread_history",
-        "schema_version": 1,
+        "schema_version": ROLLOUT_SCHEMA_VERSION,
         "session_id": source.session_id.as_str(),
         "thread_id": "another-thread",
         "sequence": 2,
         "fingerprint": fingerprint('b'),
         "content_digest": "0".repeat(64),
         "changes": changes(2),
+        "runtime_events": [],
     }))
     .expect("encode invalid tail");
     fs::OpenOptions::new()
@@ -295,6 +300,6 @@ fn crash_tail_repair_rejects_a_complete_semantically_invalid_record() {
 
     let error = append(&store, &relative_path, &source, 3, &fingerprint('c'))
         .expect_err("semantic divergence must fail closed");
-    assert!(error.contains("invalid rollout history record"));
+    assert!(error.contains("invalid rollout history record"), "{error}");
     assert_eq!(fs::read(&absolute_path).expect("reread rollout"), before);
 }

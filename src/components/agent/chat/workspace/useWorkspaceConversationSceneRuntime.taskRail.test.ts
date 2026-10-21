@@ -157,14 +157,12 @@ describe("useWorkspaceConversationSceneRuntime task rail projection", () => {
     const sceneProps = getRenderedSceneProps(params);
 
     expect(sceneProps.taskRail?.threadRead).toBe(threadRead);
-    expect(sceneProps.taskRail?.threadGoal?.objective).toBe(
-      "完成任务区域摘要",
-    );
+    expect(sceneProps.taskRail?.threadGoal?.objective).toBe("完成任务区域摘要");
     expect(sceneProps.taskRail?.canonicalChildren).toBe(canonicalChildren);
     expect(sceneProps.taskRail?.context).toBeUndefined();
   });
 
-  it("需要用户关注时才向画布壳透传会话进展面板", () => {
+  it("需要用户关注时才向画布壳透传 Summary 面板", () => {
     const handlePermissionResponse = vi.fn();
     const params = createBaseParams({
       handlePermissionResponse,
@@ -223,42 +221,10 @@ describe("useWorkspaceConversationSceneRuntime task rail projection", () => {
     const sceneProps = getRenderedSceneProps(params);
     const sessionView = sceneProps.canvasWorkbenchLayoutProps.sessionView;
 
-    expect(sessionView?.title).toBe("任务进展");
-    expect(sessionView?.tabLabel).toBe("进展");
-    expect(sessionView?.tabBadge).toBe("处理中 1");
-    expect(sessionView?.tabBadgeTone).toBe("sky");
-    expect(sessionView?.subtitle).toBe("正在处理：请抓取文章并整理成 markdown");
-    expect(sessionView?.summaryStats).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: "session-status",
-          label: "当前状态",
-          value: "执行中",
-        }),
-        expect.objectContaining({
-          key: "session-generated-files",
-          label: "生成内容",
-          value: "处理中 1",
-        }),
-        expect.objectContaining({
-          key: "session-follow-up",
-          label: "需要你处理",
-          value: "待补充 1",
-        }),
-      ]),
-    );
-    expect(sessionView?.badges).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: "session-status",
-          label: "执行中",
-        }),
-        expect.objectContaining({
-          key: "session-pending-actions",
-          label: "待补充 1",
-        }),
-      ]),
-    );
+    expect(sessionView).toBeDefined();
+    expect(sessionView).not.toHaveProperty("title");
+    expect(sessionView).not.toHaveProperty("subtitle");
+    expect(sessionView).not.toHaveProperty("summaryStats");
     expect(typeof sessionView?.renderPanel).toBe("function");
   });
 

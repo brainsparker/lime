@@ -2,6 +2,7 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "i18next";
 import type { ProviderWithKeysDisplay } from "@/lib/api/apiKeyProvider";
 import {
   findModelBoundImageCommandEntryForModel,
@@ -53,6 +54,7 @@ interface MountedRoot {
 
 const mountedRoots: MountedRoot[] = [];
 let previousDocumentLanguage: string;
+let previousI18nLanguage: string | undefined;
 
 function renderSetting(
   provider: ProviderWithKeysDisplay | null,
@@ -120,8 +122,10 @@ function byTestId<T extends HTMLElement>(
   return container.querySelector<T>(`[data-testid="${testId}"]`);
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   previousDocumentLanguage = document.documentElement.lang;
+  previousI18nLanguage = i18n.language;
+  if (i18n.isInitialized) await i18n.changeLanguage("zh-CN");
   document.documentElement.lang = "zh-CN";
   (
     globalThis as typeof globalThis & {
@@ -138,8 +142,7 @@ beforeEach(() => {
   mockOpenExternalUrlWithSystemBrowser.mockResolvedValue(undefined);
 });
 
-afterEach(() => {
-  document.documentElement.lang = previousDocumentLanguage;
+afterEach(async () => {
   vi.clearAllMocks();
   window.localStorage.clear();
 
@@ -154,6 +157,9 @@ afterEach(() => {
     });
     mounted.container.remove();
   }
+  if (i18n.isInitialized && previousI18nLanguage)
+    await i18n.changeLanguage(previousI18nLanguage);
+  document.documentElement.lang = previousDocumentLanguage;
 });
 
 describe("ProviderSetting", () => {

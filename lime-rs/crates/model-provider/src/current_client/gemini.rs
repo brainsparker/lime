@@ -180,33 +180,40 @@ fn assistant_parts(
 ) -> Result<Vec<Value>, CurrentProviderError> {
     parts
         .iter()
-        .map(|part| match part {
-            ContentPart::Text { text, .. } => Ok(json!({ "text": text })),
-            ContentPart::Reasoning { text, metadata, .. } => {
-                let mut value = json!({ "text": text, "thought": true });
-                if let Some(signature) = thought_signature(metadata) {
-                    value["thoughtSignature"] = json!(signature);
-                }
-                Ok(value)
+        .map(|part| {
+            if let ContentPart::RawResponseItem { item } = part {
+                return super::native_history::parts(item, "gemini").map(<[Value]>::to_vec);
             }
-            ContentPart::ToolCall {
-                name,
-                input,
-                metadata,
-                ..
-            } => {
-                let mut value = json!({ "functionCall": { "name": name, "args": input } });
-                if let Some(signature) = thought_signature(metadata) {
-                    value["thoughtSignature"] = json!(signature);
+            let value = match part {
+                ContentPart::Text { text, .. } => Ok(json!({ "text": text })),
+                ContentPart::Reasoning { text, metadata, .. } => {
+                    let mut value = json!({ "text": text, "thought": true });
+                    if let Some(signature) = thought_signature(metadata) {
+                        value["thoughtSignature"] = json!(signature);
+                    }
+                    Ok(value)
                 }
-                Ok(value)
-            }
-            ContentPart::Media {
-                uri, media_type, ..
-            } => media_part(provider_media_uri(uri, media_payloads), media_type),
-            other => Err(unsupported_content("assistant", other)),
+                ContentPart::ToolCall {
+                    name,
+                    input,
+                    metadata,
+                    ..
+                } => {
+                    let mut value = json!({ "functionCall": { "name": name, "args": input } });
+                    if let Some(signature) = thought_signature(metadata) {
+                        value["thoughtSignature"] = json!(signature);
+                    }
+                    Ok(value)
+                }
+                ContentPart::Media {
+                    uri, media_type, ..
+                } => media_part(provider_media_uri(uri, media_payloads), media_type),
+                other => Err(unsupported_content("assistant", other)),
+            };
+            value.map(|value| vec![value])
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
+        .map(|parts| parts.into_iter().flatten().collect())
 }
 
 fn tool_result_parts(parts: &[ContentPart]) -> Result<Vec<Value>, CurrentProviderError> {
@@ -430,7 +437,14 @@ struct GeminiStreamState {
     emitted_tool_call: bool,
     usage: Option<Usage>,
     finish_reason: Option<FinishReason>,
+    parts: Vec<Value>,
+    text_sequence: u64,
+    reasoning_sequence: u64,
 }
+
+#[cfg(test)]
+#[path = "gemini/signed_history_tests.rs"]
+mod signed_history_tests;
 
 pub(super) fn stream(
     response: Response,
@@ -512,46 +526,49 @@ fn reduce_event(
     {
         for part in parts {
             if let Some(text) = part.get("text").and_then(Value::as_str) {
-                if text.is_empty() {
-                    continue;
+                let reasoning = part.get("thought").and_then(Value::as_bool) == Some(true);
+                if (reasoning && state.text_open) || (!reasoning && state.reasoning_open) {
+                    events.extend(close_content(state));
                 }
-                if part.get("thought").and_then(Value::as_bool) == Some(true) {
-                    if state.text_open {
-                        state.text_open = false;
-                        events.push(LlmEvent::TextEnd {
-                            id: "text-0".to_string(),
-                        });
-                    }
+                if reasoning {
+                    let id = format!("reasoning-{}", state.reasoning_sequence);
                     if !state.reasoning_open {
                         state.reasoning_open = true;
-                        events.push(LlmEvent::ReasoningStart {
-                            id: "reasoning-0".to_string(),
+                        events.push(LlmEvent::ReasoningStart { id: id.clone() });
+                    }
+                    if !text.is_empty() {
+                        events.push(LlmEvent::ReasoningContentDelta {
+                            id,
+                            text: text.to_string(),
+                            content_index: 0,
                         });
                     }
-                    events.push(LlmEvent::ReasoningContentDelta {
-                        id: "reasoning-0".to_string(),
-                        text: text.to_string(),
-                        content_index: 0,
-                    });
                 } else {
-                    if state.reasoning_open {
-                        state.reasoning_open = false;
-                        events.push(LlmEvent::ReasoningEnd {
-                            id: "reasoning-0".to_string(),
-                        });
-                    }
+                    let id = format!("text-{}", state.text_sequence);
                     if !state.text_open {
                         state.text_open = true;
-                        events.push(LlmEvent::TextStart {
-                            id: "text-0".to_string(),
+                        events.push(LlmEvent::TextStart { id: id.clone() });
+                    }
+                    if !text.is_empty() {
+                        events.push(LlmEvent::TextDelta {
+                            id,
+                            text: text.to_string(),
                         });
                     }
-                    events.push(LlmEvent::TextDelta {
-                        id: "text-0".to_string(),
-                        text: text.to_string(),
-                    });
                 }
+                state.parts.push(part.clone());
                 continue;
+            }
+            // Some streams deliver the signature in its own final part.
+            if let Some(signature) = part
+                .get("thoughtSignature")
+                .and_then(Value::as_str)
+                .filter(|_| part.get("functionCall").is_none())
+            {
+                if let Some(previous) = state.parts.last_mut() {
+                    previous["thoughtSignature"] = json!(signature);
+                    continue;
+                }
             }
             if let Some(call) = part.get("functionCall").and_then(Value::as_object) {
                 events.extend(close_content(state));
@@ -617,17 +634,26 @@ fn reduce_event(
 
 fn close_content(state: &mut GeminiStreamState) -> Vec<LlmEvent> {
     let mut events = Vec::new();
+    let parts = std::mem::take(&mut state.parts);
+    let signed = parts
+        .iter()
+        .any(|part| part.get("thoughtSignature").is_some());
     if state.reasoning_open {
         state.reasoning_open = false;
-        events.push(LlmEvent::ReasoningEnd {
-            id: "reasoning-0".to_string(),
-        });
-    }
-    if state.text_open {
+        let id = format!("reasoning-{}", state.reasoning_sequence);
+        state.reasoning_sequence += 1;
+        if signed {
+            events.push(super::native_history::completed("gemini", &id, parts));
+        }
+        events.push(LlmEvent::ReasoningEnd { id });
+    } else if state.text_open {
         state.text_open = false;
-        events.push(LlmEvent::TextEnd {
-            id: "text-0".to_string(),
-        });
+        let id = format!("text-{}", state.text_sequence);
+        state.text_sequence += 1;
+        if signed {
+            events.push(super::native_history::completed("gemini", &id, parts));
+        }
+        events.push(LlmEvent::TextEnd { id });
     }
     events
 }

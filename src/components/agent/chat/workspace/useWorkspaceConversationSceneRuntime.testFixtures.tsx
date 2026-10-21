@@ -82,7 +82,6 @@ export function createBaseParams(overrides: Record<string, unknown> = {}) {
       handleCloseCanvasWorkbench: noop,
       renderCanvasWorkbenchPreview: noop,
     },
-    handleSendFromEmptyState: noop,
     landingSurface: {
       entryBannerVisible: Boolean(overrides.entryBannerVisible),
       entryBannerMessage: overrides.entryBannerMessage as string | undefined,

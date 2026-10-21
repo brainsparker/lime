@@ -9,6 +9,35 @@ import {
 const TABS = '[data-testid="workspace-right-surface-tabs"]';
 const BROWSER = '[data-testid="right-surface-browser-panel"]';
 
+// 可直接序列化到真实 Renderer；保留的隐藏面板不能满足活动标签合同。
+export function isRightSurfaceSelected({ kind, both }) {
+  const host = document.querySelector(
+    '[data-testid="workspace-right-surface-host"]',
+  );
+  const tabs = document.querySelector(
+    '[data-testid="workspace-right-surface-tabs"]',
+  );
+  const selected = tabs?.querySelector(
+    `[data-testid="workspace-right-surface-tab-${kind}"]`,
+  );
+  const active = host?.querySelector(
+    '[data-testid="workspace-right-surface-active-pane"][role="tabpanel"]',
+  );
+  return Boolean(
+    host?.getAttribute("data-surface") === kind &&
+    selected?.getAttribute("aria-selected") === "true" &&
+    active &&
+    !active.hidden &&
+    selected.getAttribute("aria-controls") === active.id &&
+    (!both ||
+      ["browser", "changes"].every((surface) =>
+        tabs.querySelector(
+          `[data-testid="workspace-right-surface-tab-${surface}"]`,
+        ),
+      )),
+  );
+}
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -138,29 +167,7 @@ export async function collectRightSurfaceLifecycleEvidence(
   const stages = {};
   const waitSurface = async (kind, both) => {
     await page.waitForFunction(
-      ({ kind, both }) => {
-        const host = document.querySelector(
-          '[data-testid="workspace-right-surface-host"]',
-        );
-        const tabs = document.querySelector(
-          '[data-testid="workspace-right-surface-tabs"]',
-        );
-        const selected = tabs?.querySelector(
-          `[data-testid="workspace-right-surface-tab-${kind}"]`,
-        );
-        return (
-          host?.getAttribute("data-surface") === kind &&
-          selected?.getAttribute("aria-selected") === "true" &&
-          selected.getAttribute("aria-controls") ===
-            host.querySelector('[role="tabpanel"]')?.id &&
-          (!both ||
-            ["browser", "changes"].every((surface) =>
-              tabs.querySelector(
-                `[data-testid="workspace-right-surface-tab-${surface}"]`,
-              ),
-            ))
-        );
-      },
+      isRightSurfaceSelected,
       { kind, both },
       { timeout: timeoutMs },
     );

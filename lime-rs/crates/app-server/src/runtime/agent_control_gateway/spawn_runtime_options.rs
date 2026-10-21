@@ -58,6 +58,7 @@ pub(super) async fn prepare(
         command_publisher: None,
         rollout_budget_reminder_source: None,
         mid_turn_compaction_commit: None,
+        internal_agent_policy: None,
     };
     request.runtime_options = core.backend.effective_turn_runtime_options(&request, true);
     let prepared = core

@@ -317,6 +317,7 @@ mod tests {
             &[installed_app("docs", "creator", true)],
         );
         let mut session_config = lime_agent::AgentSessionConfig {
+            internal_agent_policy: None,
             model_history_recorder: None,
             plugin_hook_source: None,
             id: "session-1".to_string(),

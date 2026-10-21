@@ -3,14 +3,22 @@ use super::NoopAppDataSource;
 use super::RuntimeCoreError;
 use crate::RolloutSummaryWriteParams;
 use crate::{
-    MemoryStageOneProvider, MemoryStageOneRoute, MemoryStageOneRunResult, MemoryStageOneVersion,
-    MemoryStageTwoProvider,
+    MemoryAgent, MemoryStageOneProvider, MemoryStageOneRoute, MemoryStageOneRunResult,
+    MemoryStageOneVersion,
 };
 use app_server_protocol::*;
 use async_trait::async_trait;
 
 #[async_trait]
 pub trait MemoryAppDataSource: Send + Sync {
+    async fn record_memory_citation_usage(
+        &self,
+        _root: MemoryStoreRootParams,
+        _citation: app_server_protocol::protocol::v2::MemoryCitation,
+    ) -> Result<usize, RuntimeCoreError> {
+        Ok(0)
+    }
+
     async fn run_memory_stage1(
         &self,
         _root: MemoryStoreRootParams,
@@ -25,7 +33,7 @@ pub trait MemoryAppDataSource: Send + Sync {
         &self,
         _root: MemoryStoreRootParams,
         _route: MemoryStageOneRoute,
-        _provider: &dyn MemoryStageTwoProvider,
+        _provider: &dyn MemoryAgent,
     ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
         Err(unavailable("memory stage-2"))
     }
@@ -83,7 +91,7 @@ pub trait MemoryAppDataSource: Send + Sync {
         &self,
         _params: MemoryStoreConsolidateParams,
         _route: MemoryStageOneRoute,
-        _provider: &dyn MemoryStageTwoProvider,
+        _provider: &dyn MemoryAgent,
     ) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError> {
         Err(unavailable("memoryStore/consolidate"))
     }

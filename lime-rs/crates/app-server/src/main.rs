@@ -35,6 +35,13 @@ struct InitializedDatabase {
 }
 
 fn main() -> anyhow::Result<()> {
+    if std::env::args_os().nth(1).as_deref()
+        == Some(std::ffi::OsStr::new(
+            tool_runtime::filesystem_helper::FILESYSTEM_HELPER_ARG,
+        ))
+    {
+        return tool_runtime::filesystem_helper::run().map_err(anyhow::Error::msg);
+    }
     #[cfg(windows)]
     {
         return std::thread::Builder::new()

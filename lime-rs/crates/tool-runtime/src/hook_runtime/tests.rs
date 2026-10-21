@@ -1,4 +1,5 @@
 use super::*;
+use crate::hook_lifecycle::RuntimeCompactHookContext;
 use crate::turn_snapshot::{
     RuntimeHookExecutionMode, RuntimeHookHandlerType, RuntimeHookSource, RuntimeHookTrustStatus,
 };
@@ -14,6 +15,9 @@ fn discovered(command: &str, timeout_sec: u64) -> DiscoveredHook {
             execution_mode: RuntimeHookExecutionMode::Sync,
             matcher: None,
             command: Some(command.to_string()),
+            mcp_server: None,
+            mcp_tool: None,
+            mcp_input: None,
             timeout_sec,
             status_message: Some("checking".to_string()),
             additional_context_limit: None,
@@ -82,7 +86,55 @@ fn context() -> RuntimeHookEventContext {
         tool_arguments: Some(r#"{"command":"pwd"}"#.to_string()),
         tool_output: None,
         content: None,
+        compact: None,
         stop: None,
+        interrupt: None,
+    }
+}
+
+fn compaction_context() -> RuntimeHookEventContext {
+    RuntimeHookEventContext {
+        compact: Some(RuntimeCompactHookContext {
+            invocation_id: "turn-1:pre_compact".to_string(),
+            model: "gpt-5-codex".to_string(),
+            trigger: "auto_context_limit".to_string(),
+            transcript_path: Some(PathBuf::from("/tmp/transcript.jsonl")),
+        }),
+        ..context()
+    }
+}
+
+#[test]
+fn compact_hook_input_matches_codex_contract() {
+    for (event_name, expected_label) in [
+        (RuntimeHookEventName::PreCompact, "PreCompact"),
+        (RuntimeHookEventName::PostCompact, "PostCompact"),
+    ] {
+        let mut context = compaction_context();
+        context
+            .compact
+            .as_mut()
+            .expect("compact context")
+            .invocation_id = format!("turn-1:{}", event_name.key_label());
+        let input = command_input(
+            &DiscoveredHook {
+                snapshot: RuntimeHookSnapshot {
+                    event_name,
+                    ..discovered("true", 5).snapshot
+                },
+                executable: true,
+                env: Default::default(),
+            },
+            &context,
+        )
+        .expect("compaction hook input");
+
+        assert_eq!(input["hook_event_name"], expected_label);
+        assert_eq!(input["model"], "gpt-5-codex");
+        assert_eq!(input["trigger"], "auto_context_limit");
+        assert_eq!(input["transcript_path"], "/tmp/transcript.jsonl");
+        assert_eq!(input["session_id"], "thread-1");
+        assert_eq!(input["turn_id"], "turn-1");
     }
 }
 
@@ -183,6 +235,57 @@ impl AsyncHookResultSink for RecordingAsyncResultSink {
     fn submit(&self, run: HookRunSummary) {
         self.0.lock().expect("async hook results").push(run);
     }
+}
+
+struct EchoMcpExecutor;
+
+impl McpHookExecutor for EchoMcpExecutor {
+    fn execute<'a>(
+        &'a self,
+        server: &'a str,
+        tool: &'a str,
+        input: serde_json::Value,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<McpHookOutput, String>> + Send + 'a>,
+    > {
+        Box::pin(async move {
+            assert_eq!(server, "security");
+            assert_eq!(tool, "scan");
+            assert_eq!(input["tool"], "Bash");
+            Ok(McpHookOutput {
+                stdout: r#"{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"mcp reviewed"}}"#.to_string(),
+                is_error: false,
+            })
+        })
+    }
+}
+
+#[tokio::test]
+async fn mcp_hook_reporter_executes_with_codex_argument_template() {
+    let mut hook = discovered("true", 5);
+    hook.snapshot.handler_type = RuntimeHookHandlerType::McpTool;
+    hook.snapshot.command = None;
+    hook.snapshot.mcp_server = Some("security".to_string());
+    hook.snapshot.mcp_tool = Some("scan".to_string());
+    hook.snapshot.mcp_input = Some(serde_json::json!({"tool": "${tool_name}"}));
+    let emitter = Arc::new(RecordingEmitter::default());
+    let reporter = CommandHookReporter::new(vec![hook.clone()], emitter.clone())
+        .with_mcp_executor(Arc::new(EchoMcpExecutor));
+
+    let report = reporter
+        .report(&hook.snapshot, RuntimeHookEventName::PreToolUse, &context())
+        .await
+        .expect("MCP report");
+
+    assert_eq!(
+        report,
+        RuntimeHookHandlerReport::Allow {
+            additional_context: Some("mcp reviewed".to_string())
+        }
+    );
+    let events = emitter.0.lock().expect("events");
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[1].run.handler_type, RuntimeHookHandlerType::McpTool);
 }
 
 #[tokio::test]

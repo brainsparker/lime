@@ -1,0 +1,33 @@
+{
+  "policy": "User requested all later additions deferred to next release",
+  "excludedCache": [
+    "tsconfig.node.tsbuildinfo"
+  ],
+  "paths": [
+    "internal/aiprompts/architecture.md",
+    "internal/exec-plans/artifacts/codex-rollout-context-20261021/compressed-implementation-r18.json",
+    "internal/exec-plans/artifacts/codex-rollout-context-20261021/compressed-implementation-r19.json",
+    "internal/exec-plans/artifacts/codex-rollout-context-20261021/compressed-owner-r17.json",
+    "internal/exec-plans/artifacts/codex-rollout-context-20261021/compressed-owner-r17.log",
+    "internal/exec-plans/artifacts/codex-rollout-context-20261021/compressed-owner-r19.log",
+    "internal/exec-plans/codex-rollout-context-alignment.md",
+    "lime-rs/crates/app-server/src/runtime/canonical_rollout.rs",
+    "lime-rs/crates/app-server/src/runtime/canonical_rollout/compression.rs",
+    "lime-rs/crates/app-server/src/runtime/canonical_rollout/tests/compression.rs",
+    "lime-rs/crates/app-server/tests/config_jsonrpc.rs",
+    "lime-rs/crates/app-server/tests/thread_fork_jsonrpc/portable_compression.rs",
+    "lime-rs/crates/core/src/config/desktop.rs",
+    "src/components/settings-v2/general/browser/PreferenceMenu.tsx",
+    "src/components/settings-v2/general/browser/index.tsx",
+    "src/components/settings-v2/general/browser/preferences.integration.test.tsx",
+    "src/components/settings-v2/general/keyboard-shortcuts/index.tsx",
+    "src/components/settings-v2/sections.tsx",
+    "src/i18n/resources/en-US/settings.json",
+    "src/i18n/resources/ja-JP/settings.json",
+    "src/i18n/resources/ko-KR/settings.json",
+    "src/i18n/resources/zh-CN/settings.json",
+    "src/i18n/resources/zh-TW/settings.json",
+    "src/lib/api/desktopPreferences.ts",
+    "tsconfig.node.tsbuildinfo"
+  ]
+}

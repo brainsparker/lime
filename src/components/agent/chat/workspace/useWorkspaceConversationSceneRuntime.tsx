@@ -1,6 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
 import { useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { startReview } from "@/lib/api/review";
 import {
   revertThreadHistory,
@@ -16,7 +15,6 @@ import type { WriteArtifactContext } from "../types";
 import type { PendingA2UISource } from "../types";
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
 import type { TaskFile } from "../components/TaskFiles";
-import type { InputbarSendHandler } from "../components/Inputbar/inputbarSendPayload";
 import type { WorkspacePathMissingState } from "../hooks/agentChatShared";
 import type { SidebarActivityLog } from "../hooks/useThemeContextWorkspace";
 import type { SyncStatus } from "../hooks/useContentSync";
@@ -26,7 +24,6 @@ import { WorkspaceConversationScene } from "./WorkspaceConversationScene";
 import { buildWorkspaceConversationCodingViews } from "./workspaceConversationCodingViews";
 import type { AgentSessionExecutionRuntime } from "@/lib/api/agentExecutionRuntime";
 import type { AgentTodoItem } from "@/lib/api/agentRuntime/sessionTypes";
-import type { CodingWorkbenchRecoveryContext } from "./codingWorkbenchRecovery";
 import type { GeneralWorkbenchCreationTaskEvent } from "../components/generalWorkbenchWorkflowData";
 import type { GeneralWorkbenchTaskRailContextInput } from "../components/generalWorkbenchTaskRailViewModel";
 import type { CanonicalChildThreadSummary } from "../projection/canonicalChildThreadSummary";
@@ -242,7 +239,6 @@ interface UseWorkspaceConversationSceneRuntimeParams {
   navigationActions: NavigationActions;
   inputbarScene: InputbarScene;
   canvasScene: CanvasScene;
-  handleSendFromEmptyState: InputbarSendHandler;
   landingSurface: WorkspaceConversationLandingSurfaceRuntime;
   shellChromeRuntime: ShellChromeRuntime;
   contextWorkspaceEnabled: boolean;
@@ -303,7 +299,6 @@ export function useWorkspaceConversationSceneRuntime({
   navigationActions,
   inputbarScene,
   canvasScene,
-  handleSendFromEmptyState,
   landingSurface,
   shellChromeRuntime,
   contextWorkspaceEnabled,
@@ -356,8 +351,6 @@ export function useWorkspaceConversationSceneRuntime({
   workspacePathMissing,
   workspaceHealthError,
 }: UseWorkspaceConversationSceneRuntimeParams) {
-  const { i18n, t } = useTranslation("agent");
-  const locale = i18n.language;
   const {
     emptyStateVariant: messageListEmptyStateVariant = "none",
     quoteInput,
@@ -482,53 +475,41 @@ export function useWorkspaceConversationSceneRuntime({
   const codingWorkbenchViews = useMemo(
     () =>
       buildWorkspaceConversationCodingViews({
-        t,
-        locale,
         turns: projectedTurns,
         threadItems: projectedThreadItems,
         currentTurnId: projectedCurrentTurnId,
         threadRead: projectedThreadRead,
+        canonicalChildren,
         pendingActions: projectedPendingActions,
-        submittedActionsInFlight: projectedSubmittedActionsInFlight,
         isSending,
-        focusedTimelineItemId,
+        projectless: !projectRootPath?.trim() && !projectId,
         onOpenFile: canvasScene.handleOpenCanvasWorkbenchPath,
-        onRespondToAction: onPermissionResponse,
-        onRefreshSessionReadModel,
+        onFileClick,
+        onOpenArtifactFromTimeline,
+        onOpenSubagentSession,
+        onOpenBackgroundTerminal,
+        onRefreshThread: onRefreshSessionReadModel,
+        onOpenPluginDirectory: navigationActions.handleOpenPluginDirectory,
         onStartReview,
-        onSubmitRecoveryPrompt: (
-          prompt,
-          recoveryContext?: CodingWorkbenchRecoveryContext,
-        ) =>
-          handleSendFromEmptyState({
-            textOverride: prompt,
-            sendOptions: recoveryContext
-              ? {
-                  requestMetadata: {
-                    harness: {
-                      coding_workbench_recovery: recoveryContext,
-                    },
-                  },
-                }
-              : undefined,
-          }),
       }),
     [
       canvasScene.handleOpenCanvasWorkbenchPath,
-      focusedTimelineItemId,
-      handleSendFromEmptyState,
-      onPermissionResponse,
+      onFileClick,
+      onOpenArtifactFromTimeline,
+      onOpenBackgroundTerminal,
+      onOpenSubagentSession,
       onRefreshSessionReadModel,
+      navigationActions.handleOpenPluginDirectory,
       onStartReview,
       isSending,
-      locale,
+      projectId,
+      projectRootPath,
+      canonicalChildren,
       projectedCurrentTurnId,
       projectedPendingActions,
-      projectedSubmittedActionsInFlight,
       projectedThreadItems,
       projectedThreadRead,
       projectedTurns,
-      t,
     ],
   );
   const sessionRuntimeCounters = codingWorkbenchViews.counters;
@@ -705,8 +686,6 @@ export function useWorkspaceConversationSceneRuntime({
       workbenchMode: shouldUseCodingWorkbenchChrome ? "coding" : "default",
       workspaceView,
       sessionView: codingWorkbenchViews.sessionView,
-      outputView: codingWorkbenchViews.outputView,
-      logView: codingWorkbenchViews.logView,
       changeView: codingWorkbenchViews.changeView,
       onLayoutModeChange: shouldSyncCanvasWorkbenchLayoutMode
         ? setCanvasWorkbenchLayoutMode

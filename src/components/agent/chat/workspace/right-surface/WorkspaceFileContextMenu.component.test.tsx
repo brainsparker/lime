@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { changeLimeLocale } from "@/i18n/createI18n";
+import { changeLimeLocale, getLimeI18n } from "@/i18n/createI18n";
 import { WorkspaceFileContextMenu } from "./WorkspaceFileContextMenu";
 import { FileTree } from "./FileTree";
 import { RightSurfaceTabStrip } from "./RightSurfaceTabStrip";
@@ -16,6 +16,11 @@ const boundary = vi.hoisted(() => ({
   targets: [] as OpenInTarget[],
   open: vi.fn(),
   gate: null as Promise<void> | null,
+  read: vi.fn(),
+}));
+vi.mock("@/lib/api/fileBrowser", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/fileBrowser")>()),
+  readFilePreview: boundary.read,
 }));
 vi.mock("@/lib/api/openIn", () => ({
   openIn: {
@@ -46,6 +51,7 @@ vi.mock("sonner", () => ({ toast: { error: boundary.error } }));
 
 let root: Root;
 let host: HTMLDivElement;
+let previousLocale: string;
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.clearAllMocks();
@@ -55,10 +61,12 @@ beforeEach(async () => {
   boundary.open.mockResolvedValue(undefined);
   openInQueryClient.clear();
   boundary.clipboard.mockResolvedValue(undefined);
+  boundary.read.mockResolvedValue({ content: "完整正文\n😀", isBinary: false });
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
     value: { writeText: boundary.clipboard },
   });
+  previousLocale = getLimeI18n().language;
   await changeLimeLocale("en-US");
   host = document.createElement("div");
   document.body.append(host);
@@ -67,6 +75,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
+  await changeLimeLocale(previousLocale);
 });
 const path = "C:\\work\\nested\\real.ts";
 const select = vi.fn();
@@ -75,6 +84,7 @@ function renderTree(scope = "root/query") {
     root.render(
       <FileTree
         scope={scope}
+        filePaths={new Set([path])}
         rows={[
           {
             kind: "entry",
@@ -341,6 +351,15 @@ describe("Files 菜单真实 DOM", () => {
     await context(tabs[0]);
     await settleQuery();
     expect(menu()?.dataset.filePath).toBe(path);
+    expect(
+      Array.from(menu()!.querySelectorAll('[role="menuitem"]'), (item) =>
+        item.getAttribute("data-testid"),
+      ),
+    ).toEqual([
+      "workspace-file-menu-save-as",
+      "workspace-file-menu-copy-path",
+      "workspace-file-menu-copy-contents",
+    ]);
     await act(async () =>
       menu()!
         .querySelector<HTMLElement>(
@@ -353,6 +372,57 @@ describe("Files 菜单真实 DOM", () => {
     });
     expect(boundary.clipboard).toHaveBeenCalledExactlyOnceWith(path);
     expect(document.activeElement).toBe(tabs[0]);
+  });
+
+  it.each([
+    ["zh-CN", "复制文件内容"],
+    ["zh-TW", "複製檔案內容"],
+    ["en-US", "Copy file contents"],
+    ["ja-JP", "ファイルの内容をコピー"],
+    ["ko-KR", "파일 내용 복사"],
+  ] as const)("%s内容菜单复制完整文件而非路径", async (locale, label) => {
+    await changeLimeLocale(locale);
+    act(() =>
+      root.render(
+        <WorkspaceFileContextMenu scope="content" filePath={path}>
+          <button>content</button>
+        </WorkspaceFileContextMenu>,
+      ),
+    );
+    await context(host.querySelector("button")!);
+    await settleQuery();
+    const copy = menu()!.querySelector<HTMLElement>(
+      '[data-testid="workspace-file-menu-copy-contents"]',
+    )!;
+    expect(copy.textContent).toBe(label);
+    await act(async () => copy.click());
+    expect(boundary.read).toHaveBeenCalledExactlyOnceWith(
+      path,
+      Number.POSITIVE_INFINITY,
+    );
+    expect(boundary.clipboard).toHaveBeenCalledExactlyOnceWith("完整正文\n😀");
+    expect(menu()).toBeNull();
+  });
+
+  it("workspace内容入口保留路径动作，不展示文件内容或另存为", async () => {
+    act(() =>
+      root.render(
+        <WorkspaceFileContextMenu
+          scope="workspace"
+          filePath={path}
+          openMode="workspace"
+        >
+          <button>workspace</button>
+        </WorkspaceFileContextMenu>,
+      ),
+    );
+    await context(host.querySelector("button")!);
+    await settleQuery();
+    expect(
+      Array.from(menu()!.querySelectorAll('[role="menuitem"]'), (item) =>
+        item.getAttribute("data-testid"),
+      ),
+    ).toEqual(["workspace-file-menu-copy-path"]);
   });
 
   it.each([

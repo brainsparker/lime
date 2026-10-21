@@ -398,7 +398,7 @@ fn append_runtime_events_to_stored_session(
     if let Some(projection_store) = projection_store {
         if requires_canonical_persistence {
             projection_store
-                .apply_canonical_events(stored, &appended_events)
+                .apply_canonical_events_with_media(stored, &appended_events, sidecar_store)
                 .map_err(|error| {
                     let message = if requires_mailbox_canonical_persistence {
                         "canonical mailbox Item must persist before delivery acknowledgement"
@@ -418,7 +418,7 @@ fn append_runtime_events_to_stored_session(
         }
         if !requires_canonical_persistence {
             projection_store
-                .apply_canonical_events(stored, &appended_events)
+                .apply_canonical_events_with_media(stored, &appended_events, sidecar_store)
                 .map_err(|error| {
                     RuntimeCoreError::Backend(format!(
                         "canonical ThreadStore projection failed after EventLog append: {error}"

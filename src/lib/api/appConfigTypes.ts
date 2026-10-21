@@ -351,6 +351,19 @@ export interface TuiConfig {
   terminal_title?: string[] | null;
 }
 
+export type LinkOpenTarget = "in-app-browser" | "external-browser";
+export type ExternalBrowserLinkShortcut =
+  | "unassigned"
+  | "primary"
+  | "alt"
+  | "primary-shift";
+
+export interface DesktopConfig {
+  "open-link-in-target-preference"?: LinkOpenTarget | null;
+  "open-local-url-in-target-preference"?: LinkOpenTarget | null;
+  "external-browser-link-shortcut"?: ExternalBrowserLinkShortcut;
+}
+
 export interface Config {
   tools?: {
     experimental_request_user_input?: { enabled?: boolean };
@@ -374,6 +387,7 @@ export interface Config {
     { enabled?: boolean }
   >;
   tui?: TuiConfig;
+  desktop?: DesktopConfig;
   server: {
     host: string;
     port: number;

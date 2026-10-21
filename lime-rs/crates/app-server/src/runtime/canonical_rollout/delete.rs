@@ -16,15 +16,22 @@ impl RolloutStore {
         } else {
             self.resolve_active(relative_path)?
         };
-        if !path
-            .try_exists()
-            .map_err(|error| format!("failed to inspect rollout {}: {error}", path.display()))?
-        {
+        if super::compression::existing_path(&path)?.is_none() {
             return Ok(false);
         }
         self.verify_location(relative_path, session_id, thread_id, archived)?;
-        fs::remove_file(&path)
-            .map_err(|error| format!("failed to delete rollout {}: {error}", path.display()))?;
+        // Remove the hidden representation first so a failed deletion cannot revive it.
+        super::compression::remove_compressed(&path)?;
+        match fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(format!(
+                    "failed to delete rollout {}: {error}",
+                    path.display()
+                ))
+            }
+        }
         Ok(true)
     }
 }

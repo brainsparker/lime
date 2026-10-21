@@ -65,9 +65,7 @@ describe("CanvasWorkbenchLayout", () => {
       loadFilePreview,
       onOpenPath,
       onRevealPath,
-      workspaceView: {
-        tabBadge: "当前项目",
-      },
+      workspaceView: {},
     });
 
     await flushEffects();
@@ -833,7 +831,7 @@ describe("CanvasWorkbenchLayout", () => {
     expect(harness.container.textContent).toContain("imported-preview.html");
   });
 
-  it("sessionView 存在但没有默认主稿时，应回退渲染会话进展面板", async () => {
+  it("sessionView 存在但没有默认主稿时，应回退渲染 Summary 面板", async () => {
     const onClose = vi.fn();
     const renderSessionPanel = vi.fn(() => (
       <div data-testid="session-view-panel">session-runtime-panel</div>
@@ -874,7 +872,7 @@ describe("CanvasWorkbenchLayout", () => {
     await flushEffects();
 
     expect(
-      container.querySelector('[data-testid="canvas-workbench-panel-outputs"]'),
+      container.querySelector('[data-testid="canvas-workbench-panel-summary"]'),
     ).not.toBeNull();
     expect(
       container.querySelector('[data-testid="session-view-panel"]')
@@ -946,7 +944,7 @@ describe("CanvasWorkbenchLayout", () => {
       ),
     ).not.toBeNull();
     expect(
-      container.querySelector('[data-testid="canvas-workbench-panel-outputs"]'),
+      container.querySelector('[data-testid="canvas-workbench-panel-summary"]'),
     ).toBeNull();
     expect(
       container.querySelector(
@@ -959,7 +957,7 @@ describe("CanvasWorkbenchLayout", () => {
     expect(renderSessionPanel).not.toHaveBeenCalled();
   });
 
-  it("sessionView 首次落在过程页时，后续出现真实主稿应自动切到文件标签", async () => {
+  it("sessionView 首次落在 Summary 页时，后续出现真实主稿应自动切到文件标签", async () => {
     const renderSessionPanel = vi.fn(() => (
       <div data-testid="session-view-panel">session-runtime-panel</div>
     ));
@@ -990,7 +988,7 @@ describe("CanvasWorkbenchLayout", () => {
 
     expect(
       harness.container.querySelector(
-        '[data-testid="canvas-workbench-panel-outputs"]',
+        '[data-testid="canvas-workbench-panel-summary"]',
       ),
     ).not.toBeNull();
     expect(

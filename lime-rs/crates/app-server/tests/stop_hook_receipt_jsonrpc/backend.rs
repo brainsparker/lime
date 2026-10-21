@@ -153,6 +153,9 @@ impl ExecutionBackend for Backend {
                     execution_mode: RuntimeHookExecutionMode::Sync,
                     matcher: None,
                     command: Some("fixture".into()),
+                    mcp_server: None,
+                    mcp_tool: None,
+                    mcp_input: None,
                     timeout_sec: 5,
                     status_message: None,
                     additional_context_limit: None,
@@ -165,6 +168,7 @@ impl ExecutionBackend for Backend {
                     current_hash: "sha256:test".into(),
                     trust_status: RuntimeHookTrustStatus::Trusted,
                 }],
+                step_context: None,
                 reporter: Arc::new(StopOnce),
             })
         });

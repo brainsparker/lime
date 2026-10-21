@@ -644,6 +644,7 @@ fn execution_request(primary_provider: &str, backup_provider: &str) -> Execution
         command_publisher: None,
         rollout_budget_reminder_source: None,
         mid_turn_compaction_commit: None,
+        internal_agent_policy: None,
     }
 }
 

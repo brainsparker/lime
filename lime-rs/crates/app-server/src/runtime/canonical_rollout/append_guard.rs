@@ -144,29 +144,26 @@ fn validate_rollout_tail_record(
             fingerprint,
             content_digest,
             changes,
+            runtime_events,
         } => {
             if !digest::supported_schema_version(schema_version)
                 || record_session_id != session_id
                 || record_thread_id != thread_id
                 || changes.sequence != sequence
                 || !is_sha256_hex(&fingerprint)
-                || !digest::history_digest_matches(
-                    schema_version,
-                    line,
-                    session_id,
-                    thread_id,
-                    &changes,
-                    &content_digest,
-                )?
+                || digest::history_content_digest(session_id, thread_id, &changes, &runtime_events)?
+                    != content_digest
             {
                 return Err(format!(
                     "invalid rollout history record: {}",
                     path.display()
                 ));
             }
+            super::scan::validate_runtime_events(session_id, thread_id, sequence, &runtime_events)?;
             Ok(Some(LatestRolloutHistory {
                 sequence,
                 fingerprint,
+                content_digest,
             }))
         }
         RolloutRecord::ThreadMetadata {
@@ -182,14 +179,8 @@ fn validate_rollout_tail_record(
                 || record_session_id != session_id
                 || record_thread_id != thread_id
                 || !is_sha256_hex(&previous_content_digest)
-                || digest::metadata_digest_for_record(
-                    schema_version,
-                    line,
-                    session_id,
-                    thread_id,
-                    updated_at_ms,
-                    &metadata,
-                )? != content_digest
+                || digest::metadata_content_digest(session_id, thread_id, updated_at_ms, &metadata)?
+                    != content_digest
             {
                 return Err(format!(
                     "invalid rollout metadata record: {}",

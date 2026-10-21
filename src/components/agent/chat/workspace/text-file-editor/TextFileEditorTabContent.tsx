@@ -196,7 +196,11 @@ function FileEditorContent({
               </button>
             ) : null}
             {toolbarActions}
-            <ArtifactPreviewHeader path={path} />
+            <ArtifactPreviewHeader
+              path={path}
+              cwd={workspaceRoot}
+              onBeforeFileAction={controller.saveUntilClean}
+            />
           </>
         }
       />

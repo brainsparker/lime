@@ -74,6 +74,9 @@ fn turn(provider: Arc<ScriptedProvider>) -> CurrentProviderTurnInput {
                     execution_mode: RuntimeHookExecutionMode::Sync,
                     matcher: None,
                     command: Some("fixture".into()),
+                    mcp_server: None,
+                    mcp_tool: None,
+                    mcp_input: None,
                     timeout_sec: 5,
                     status_message: None,
                     additional_context_limit: None,
@@ -86,6 +89,7 @@ fn turn(provider: Arc<ScriptedProvider>) -> CurrentProviderTurnInput {
                     current_hash: "sha256:test".into(),
                     trust_status: RuntimeHookTrustStatus::Trusted,
                 }],
+                step_context: None,
                 reporter: Arc::new(StopOnce),
             },
         )),
@@ -214,7 +218,7 @@ async fn memory_rejects_both_block_and_abort_without_publishing_or_resampling() 
             .hook_snapshot_source
             .as_ref()
             .unwrap()
-            .capture()
+            .capture(None)
             .await
             .unwrap();
         snapshot.reporter = Arc::new(FixedHookReporter::new(Some(report)));

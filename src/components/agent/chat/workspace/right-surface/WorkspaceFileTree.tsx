@@ -43,8 +43,10 @@ function SearchResultsTree({
       scope={JSON.stringify([root, query])}
       cwd={root}
       rows={rows}
+      filePaths={tree.filePaths}
       expandedDirectories={expanded}
       selectedPath={selectedPath}
+      resetKey={tree}
       onToggleDirectory={(path) =>
         setExpanded((previous) => ({ ...previous, [path]: !previous[path] }))
       }

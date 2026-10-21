@@ -22,8 +22,6 @@ const CONSUMER_PATHS = [
   "src/components/agent/chat/hooks/agentSilentTurnRecovery.ts",
   "src/components/agent/chat/hooks/sessionHistoryMergeController.ts",
   "src/components/agent/chat/utils/sessionExecutionRuntime.ts",
-  "src/components/agent/chat/workspace/CodingWorkbenchOutputPanel.tsx",
-  "src/components/agent/chat/workspace/codingWorkbenchRecovery.ts",
   "src/components/agent/chat/workspace/imageCommandIntent.ts",
   "src/components/agent/chat/workspace/imageWorkbenchTaskActions.ts",
   "src/components/agent/chat/workspace/useWorkspaceCanvasWorkflowActions.ts",

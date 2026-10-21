@@ -1,8 +1,59 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   assertRightSurfaceLifecycleEvidence,
+  isRightSurfaceSelected,
   summarizeRightSurfaceLifecycleEvidence,
 } from "./right-surface-lifecycle-gate-b.mjs";
+
+describe("Right Surface active pane observation", () => {
+  afterEach(() => document.body.replaceChildren());
+
+  function renderPanes() {
+    document.body.innerHTML = `
+      <div data-testid="workspace-right-surface-tabs">
+        <button data-testid="workspace-right-surface-tab-changes"
+          aria-selected="false" aria-controls="changes-panel"></button>
+        <button data-testid="workspace-right-surface-tab-browser"
+          aria-selected="true" aria-controls="browser-panel"></button>
+      </div>
+      <div data-testid="workspace-right-surface-host" data-surface="browser">
+        <div role="tabpanel" id="changes-panel" hidden></div>
+        <div role="tabpanel" id="browser-panel"
+          data-testid="workspace-right-surface-active-pane"></div>
+      </div>`;
+  }
+
+  it("observes Browser after an earlier Changes pane remains mounted and hidden", () => {
+    renderPanes();
+    expect(isRightSurfaceSelected({ kind: "browser", both: true })).toBe(true);
+    expect(isRightSurfaceSelected({ kind: "changes", both: true })).toBe(false);
+  });
+
+  it.each(["hidden", "controls", "selection", "surface", "missing-tab"])(
+    "rejects an invalid active pane association: %s",
+    (defect) => {
+      renderPanes();
+      const active = document.getElementById("browser-panel");
+      const selected = document.querySelector(
+        '[data-testid="workspace-right-surface-tab-browser"]',
+      );
+      if (defect === "hidden") active.hidden = true;
+      if (defect === "controls")
+        selected.setAttribute("aria-controls", "changes-panel");
+      if (defect === "selection")
+        selected.setAttribute("aria-selected", "false");
+      if (defect === "surface")
+        active.parentElement.setAttribute("data-surface", "changes");
+      if (defect === "missing-tab")
+        document
+          .querySelector('[data-testid="workspace-right-surface-tab-changes"]')
+          .remove();
+      expect(isRightSurfaceSelected({ kind: "browser", both: true })).toBe(
+        false,
+      );
+    },
+  );
+});
 
 function fixture() {
   const identity = {

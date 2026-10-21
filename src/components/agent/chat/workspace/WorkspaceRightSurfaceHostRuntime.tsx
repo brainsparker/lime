@@ -7,6 +7,8 @@ import { GeneralWorkbenchHarnessSurfaceSection } from "./WorkspaceHarnessDialogs
 import { WorkspaceArticleEditorRightSurface } from "./WorkspaceArticleEditorRightSurface";
 import { WorkspaceFileThreadSidePanelTab } from "./WorkspaceFileThreadSidePanelTab";
 import { ThreadSidePanelNewTab } from "./right-surface/ThreadSidePanelNewTab";
+import type { ThreadOutput } from "./right-surface/threadOutputs";
+import { resolveOutputPath } from "./right-surface/threadOutputPaths";
 import type { ThreadSidePanelAction } from "./right-surface/threadSidePanelActions";
 import type {
   FileSelectionOptions,
@@ -41,6 +43,8 @@ export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
   sidePanelTabs: ThreadSidePanelTabs;
   backgroundTerminalItems?: readonly AgentThreadItem[];
   sidePanelActions: readonly ThreadSidePanelAction[];
+  outputs?: readonly ThreadOutput[];
+  onOpenWebsite: (url: string) => void;
   onNewSidePanelTab: () => void;
   onSelectSidePanelTab: (tabId: string) => void;
   onCloseSidePanelTab: (tabId: string) => void;
@@ -51,7 +55,7 @@ export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
   onSelectChatFromNewTab: (tabId: string) => void;
   onOpenWorkspaceFile: (
     path: string,
-    sourceTab: ThreadSidePanelTab,
+    sourceTab?: ThreadSidePanelTab,
     options?: FileSelectionOptions,
   ) => void;
   onPinSidePanelTab: (tabId: string) => void;
@@ -63,6 +67,8 @@ export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
   browserRightSurfaceAvailable: boolean;
   ensureBrowserWorkspaceOwner?: BrowserPanelProps["ensureOwner"];
   browserRightSurfaceInitialUrl?: string | null;
+  browserRightSurfaceLaunchRequestId?: string | null;
+  onBrowserLaunchApplied?: (requestId: string) => void;
   browserRightSurfaceIntentTitle?: string | null;
   browserRightSurfaceHistoricalProjection?: BrowserPanelProps["historicalProjection"];
   canvasWorkbenchRootPath: TerminalTabProps["cwd"];
@@ -100,6 +106,8 @@ export function renderWorkspaceRightSurfaceHostRuntime({
   sidePanelTabs,
   backgroundTerminalItems = [],
   sidePanelActions,
+  outputs,
+  onOpenWebsite,
   onNewSidePanelTab,
   onSelectSidePanelTab,
   onCloseSidePanelTab,
@@ -113,6 +121,8 @@ export function renderWorkspaceRightSurfaceHostRuntime({
   browserRightSurfaceAvailable,
   ensureBrowserWorkspaceOwner,
   browserRightSurfaceInitialUrl,
+  browserRightSurfaceLaunchRequestId,
+  onBrowserLaunchApplied,
   browserRightSurfaceIntentTitle,
   browserRightSurfaceHistoricalProjection,
   canvasWorkbenchRootPath,
@@ -154,6 +164,23 @@ export function renderWorkspaceRightSurfaceHostRuntime({
           onSelectSidePanelAction(action.kind, tab.tabId)
         }
         onChatSelect={() => onSelectChatFromNewTab(tab.tabId)}
+        outputs={outputs}
+        onOpenOutput={(output) => {
+          if (output.type === "website") {
+            if (/^https?:\/\//i.test(output.target)) {
+              onOpenWebsite(output.target);
+            } else {
+              onOpenWorkspaceFile(
+                resolveOutputPath(
+                  output.target,
+                  canvasWorkbenchRootPath ?? null,
+                ),
+              );
+            }
+            return;
+          }
+          onOpenWorkspaceFile(output.path, tab);
+        }}
       />
     ),
 
@@ -227,6 +254,8 @@ export function renderWorkspaceRightSurfaceHostRuntime({
                 active={rightSurfaceState.activeSurface === "browser"}
                 ensureOwner={ensureBrowserWorkspaceOwner}
                 initialUrl={browserRightSurfaceInitialUrl ?? null}
+                launchRequestId={browserRightSurfaceLaunchRequestId}
+                onLaunchApplied={onBrowserLaunchApplied}
                 runtimeSessionId={sceneSessionId}
                 threadId={sceneThreadId || ""}
                 onNavigate={onRightSurfaceBrowserNavigate}

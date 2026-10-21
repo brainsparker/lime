@@ -41,7 +41,14 @@ impl RequestProcessor {
             .add_marketplace(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_result(response)
+        let changed = !response.already_added;
+        if changed {
+            self.runtime.invalidate_plugin_components().await;
+            self.refresh_plugin_skill_watch().await;
+            self.publish_app_list_updated().await;
+        }
+        self.dispatch_skill_catalog_mutation(response, changed)
+            .await
     }
 
     pub(super) async fn handle_marketplace_remove_v2_impl(
@@ -55,7 +62,14 @@ impl RequestProcessor {
             .remove_marketplace(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_result(response)
+        let changed = response.installed_root.is_some();
+        if changed {
+            self.runtime.invalidate_plugin_components().await;
+            self.refresh_plugin_skill_watch().await;
+            self.publish_app_list_updated().await;
+        }
+        self.dispatch_skill_catalog_mutation(response, changed)
+            .await
     }
 
     pub(super) async fn handle_marketplace_upgrade_v2_impl(

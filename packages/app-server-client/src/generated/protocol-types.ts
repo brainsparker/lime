@@ -6236,15 +6236,30 @@ export interface HookErrorInfo {
   path: string;
 }
 
-export interface HookMetadata {
+export type HookHandlerMetadata =
+  | {
+      async?: boolean;
+      command: string;
+      handlerType: "command";
+    }
+  | {
+      handlerType: "mcpTool";
+      server: string;
+      tool: string;
+    }
+  | {
+      handlerType: "prompt";
+    }
+  | {
+      handlerType: "agent";
+    };
+
+export type HookMetadata = {
   additionalContextLimit?: number | null;
-  command?: null | string;
   currentHash: string;
   displayOrder: number;
   enabled: boolean;
   eventName: HookEventName;
-  executionMode?: HookExecutionMode;
-  handlerType: HookHandlerType;
   isManaged: boolean;
   key: string;
   matcher?: null | string;
@@ -6254,7 +6269,24 @@ export interface HookMetadata {
   statusMessage?: null | string;
   timeoutSec: number;
   trustStatus: HookTrustStatus;
-}
+} & (
+  | {
+      async?: boolean;
+      command: string;
+      handlerType: "command";
+    }
+  | {
+      handlerType: "mcpTool";
+      server: string;
+      tool: string;
+    }
+  | {
+      handlerType: "prompt";
+    }
+  | {
+      handlerType: "agent";
+    }
+);
 
 export interface HookOutputEntry {
   kind: HookOutputEntryKind;
@@ -11698,6 +11730,7 @@ export interface DynamicToolCallApproval {
 export type PathUri = string;
 
 export type HookEventName =
+  | "interrupt"
   | "permissionRequest"
   | "postCompact"
   | "postToolUse"
@@ -11709,10 +11742,6 @@ export type HookEventName =
   | "subagentStart"
   | "subagentStop"
   | "userPromptSubmit";
-
-export type HookExecutionMode = "async" | "sync";
-
-export type HookHandlerType = "agent" | "command" | "prompt";
 
 export type HookSource =
   | "cloudManagedConfig"
@@ -11728,6 +11757,10 @@ export type HookSource =
   | "user";
 
 export type HookTrustStatus = "managed" | "modified" | "trusted" | "untrusted";
+
+export type HookExecutionMode = "async" | "sync";
+
+export type HookHandlerType = "agent" | "command" | "mcpTool" | "prompt";
 
 export type HookRunStatus =
   | "blocked"

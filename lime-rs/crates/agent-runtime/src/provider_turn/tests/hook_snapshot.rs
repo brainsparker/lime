@@ -14,6 +14,9 @@ fn hook(key: &str, display_order: i64) -> RuntimeHookSnapshot {
         execution_mode: RuntimeHookExecutionMode::Sync,
         matcher: None,
         command: Some("echo hook".to_string()),
+        mcp_server: None,
+        mcp_tool: None,
+        mcp_input: None,
         timeout_sec: 5,
         status_message: None,
         additional_context_limit: None,
@@ -86,6 +89,7 @@ async fn invalid_hook_snapshot_stops_sampling_instead_of_bypassing_hooks() {
             RuntimeHookSnapshotSourceHandle::fixed(RuntimeHookStepSnapshot {
                 hooks,
                 reporter: Arc::new(FixedHookReporter::new(None)),
+                step_context: None,
             }),
             expected,
         )
@@ -96,7 +100,10 @@ async fn invalid_hook_snapshot_stops_sampling_instead_of_bypassing_hooks() {
 struct FailedHookSource;
 
 impl RuntimeHookSnapshotSource for FailedHookSource {
-    fn capture(&self) -> RuntimeHookSnapshotFuture<'_> {
+    fn capture(
+        &self,
+        _step_context: Option<&RuntimeSessionStepContext>,
+    ) -> RuntimeHookSnapshotFuture<'_> {
         Box::pin(async { Err("plugin Hook source unavailable".to_string()) })
     }
 }
@@ -108,6 +115,66 @@ async fn hook_source_failure_stops_sampling() {
         "plugin Hook source unavailable",
     )
     .await;
+}
+
+#[tokio::test]
+async fn mismatched_tool_and_hook_step_contexts_fail_closed_before_sampling() {
+    let provider = Arc::new(ScriptedProvider::new(Vec::new()));
+    let mut input = CurrentProviderTurnInput {
+        provider: provider.clone(),
+        provider_trace_metadata: None,
+        session_config: crate::session_config::SessionConfigBuilder::new("session-1")
+            .thread_id("thread-1")
+            .turn_id("turn-1")
+            .build(),
+        initial_messages: vec![CurrentProviderMessage::user(vec![
+            CurrentProviderContent::Text("hello".into()),
+        ])],
+        tool_step_snapshot_source: RuntimeToolStepSnapshotSourceHandle::fixed(
+            RuntimeToolStepSnapshot::new(
+                Vec::new(),
+                RuntimeToolExecutorHandle::new(Arc::new(EchoTool)),
+            ),
+        ),
+        hook_snapshot_source: None,
+        model_request_policy: None,
+        tool_lifecycle_emitter: Arc::new(RecordingLifecycleEmitter::default()),
+        working_directory: PathBuf::from(env!("CARGO_MANIFEST_DIR")),
+        cancel_token: None,
+        pending_input: None,
+        mid_turn_compaction: None,
+    };
+    let tool_context = RuntimeSessionStepContext {
+        session_id: "stop-session".into(),
+        turn_id: "stop-turn".into(),
+        step_index: 1,
+        context_epoch: 0,
+        mailbox_delivery_phase:
+            crate::session_loop::RuntimeSessionMailboxDeliveryPhase::CurrentTurn,
+    };
+    let hook_context = RuntimeSessionStepContext {
+        context_epoch: 1,
+        ..tool_context.clone()
+    };
+    input.tool_step_snapshot_source = RuntimeToolStepSnapshotSourceHandle::fixed(
+        RuntimeToolStepSnapshot::new(
+            Vec::new(),
+            RuntimeToolExecutorHandle::new(Arc::new(EchoTool)),
+        )
+        .with_step_context(tool_context),
+    );
+    input.hook_snapshot_source = Some(RuntimeHookSnapshotSourceHandle::fixed(
+        RuntimeHookStepSnapshot {
+            hooks: Vec::new(),
+            reporter: Arc::new(FixedHookReporter::new(None)),
+            step_context: Some(hook_context),
+        },
+    ));
+    let error = run_current_provider_turn(input, |_| {})
+        .await
+        .expect_err("mixed snapshot epochs must fail closed");
+    assert!(error.message.contains("different session contexts"));
+    assert!(provider.requests.lock().unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -126,6 +193,7 @@ async fn terminal_stop_hook_blocks_once_with_the_current_step_snapshot() {
                     reason: "continue until checks pass".to_string(),
                 },
             ))),
+            step_context: None,
         },
         &config,
         "turn-1",
@@ -165,6 +233,7 @@ async fn terminal_stop_hook_abort_stops_without_continuation() {
                     reason: Some("stop now".to_string()),
                 },
             ))),
+            step_context: None,
         },
         &config,
         "turn-1",
@@ -202,6 +271,7 @@ async fn cancellation_after_completed_provider_step_skips_stop_hook_dispatch() {
                 reason: "must not be dispatched after cancellation".to_string(),
             },
         ))),
+        step_context: None,
     };
     let mut events = Vec::new();
     let result = run_current_provider_turn(

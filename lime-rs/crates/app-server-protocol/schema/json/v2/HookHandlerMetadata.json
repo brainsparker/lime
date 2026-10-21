@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "properties": {
+        "async": {
+          "default": false,
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string"
+        },
+        "handlerType": {
+          "const": "command",
+          "type": "string"
+        }
+      },
+      "required": [
+        "command",
+        "handlerType"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "handlerType": {
+          "const": "mcpTool",
+          "type": "string"
+        },
+        "server": {
+          "type": "string"
+        },
+        "tool": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "handlerType",
+        "server",
+        "tool"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "handlerType": {
+          "const": "prompt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "handlerType"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "handlerType": {
+          "const": "agent",
+          "type": "string"
+        }
+      },
+      "required": [
+        "handlerType"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "HookHandlerMetadata"
+}

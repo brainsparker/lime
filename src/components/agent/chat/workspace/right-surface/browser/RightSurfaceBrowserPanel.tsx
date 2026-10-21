@@ -12,6 +12,8 @@ import { BrowserWorkspaceHistorical } from "./BrowserWorkspaceHistorical";
 export interface RightSurfaceBrowserPanelProps {
   ensureOwner?: () => Promise<BrowserWorkspaceOwner | null>;
   initialUrl?: string | null;
+  launchRequestId?: string | null;
+  onLaunchApplied?: (requestId: string) => void;
   runtimeSessionId?: string | null;
   threadId: string;
   controlMode?: string | null;
@@ -24,6 +26,8 @@ export interface RightSurfaceBrowserPanelProps {
 export const RightSurfaceBrowserPanel = memo(function RightSurfaceBrowserPanel({
   ensureOwner,
   initialUrl,
+  launchRequestId,
+  onLaunchApplied,
   runtimeSessionId,
   threadId,
   controlMode,
@@ -95,6 +99,8 @@ export const RightSurfaceBrowserPanel = memo(function RightSurfaceBrowserPanel({
         active={active}
         ensureOwner={ensureOwner}
         initialUrl={initialUrl}
+        launchRequestId={launchRequestId}
+        onLaunchApplied={onLaunchApplied}
         runtimeSessionId={runtimeSessionId}
         threadId={threadId}
         onNavigate={onNavigate}

@@ -210,6 +210,7 @@ pub const V2_SCHEMA_TYPE_NAMES: &[&str] = &[
     "HooksListParams",
     "HooksListResponse",
     "HooksListEntry",
+    "HookHandlerMetadata",
     "HookMetadata",
     "HookErrorInfo",
     "HookOutputEntry",

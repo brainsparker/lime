@@ -303,11 +303,13 @@ impl RuntimeBackend {
         let mut route_request = request.clone();
         let initial_host_request = runtime_request_from_request(&route_request);
         let initial_tool_policy = request_tool_policy_from_request(initial_host_request.as_ref());
-        apply_app_server_turn_policy(
-            &mut route_request,
-            first_sampling_turn,
-            &initial_tool_policy,
-        );
+        if request.internal_agent_policy.is_none() {
+            apply_app_server_turn_policy(
+                &mut route_request,
+                first_sampling_turn,
+                &initial_tool_policy,
+            );
+        }
         let route = self.resolve_turn_route(&route_request).await?;
         if let Some(route_failure) = route.resolution.resolved_route.failure.as_ref() {
             return Err(runtime_error_from_route_failure(
@@ -375,11 +377,13 @@ impl RuntimeBackend {
         }
         let initial_host_request = runtime_request_from_request(&request);
         let initial_tool_policy = request_tool_policy_from_request(initial_host_request.as_ref());
-        apply_app_server_turn_policy(
-            &mut request,
-            provider_history.is_empty(),
-            &initial_tool_policy,
-        );
+        if request.internal_agent_policy.is_none() {
+            apply_app_server_turn_policy(
+                &mut request,
+                provider_history.is_empty(),
+                &initial_tool_policy,
+            );
+        }
         let host_request = runtime_request_from_request(&request);
         let request_tool_policy = request_tool_policy_from_request(host_request.as_ref());
         let compact_tool_surface = should_use_compact_tool_surface(&request);
@@ -388,7 +392,11 @@ impl RuntimeBackend {
                 &request,
                 &session_scope.session_id,
             );
-        let plugin_snapshots = self.current_plugin_turn_snapshots().await?;
+        let plugin_snapshots = if request.internal_agent_policy.is_some() {
+            Vec::new()
+        } else {
+            self.current_plugin_turn_snapshots().await?
+        };
         let agent_skill_events = agent_skills_telemetry::runtime_status_events_for_agent_skills(
             &request,
             &plugin_snapshots,
@@ -474,7 +482,7 @@ impl RuntimeBackend {
                 self.ensure_agent_initialized(&db).await?;
                 self.install_live_execution_process_hook_if_available()
                     .await?;
-                if !compact_tool_surface {
+                if !compact_tool_surface && request.internal_agent_policy.is_none() {
                     self.register_current_native_tools_if_available().await?;
                     mcp_bridges::ensure_thread_mcp_runtime_if_available(
                         &self.agent_state,
@@ -484,15 +492,17 @@ impl RuntimeBackend {
                     )
                     .await?;
                 }
-                orchestrator_skill_discovery = Some(
-                    orchestrator_skills::discover_for_turn(
-                        &self.agent_state,
-                        &session_scope.session_id,
-                        &session_scope.thread_id,
-                        config_metadata.as_ref(),
-                    )
-                    .await,
-                );
+                if request.internal_agent_policy.is_none() {
+                    orchestrator_skill_discovery = Some(
+                        orchestrator_skills::discover_for_turn(
+                            &self.agent_state,
+                            &session_scope.session_id,
+                            &session_scope.thread_id,
+                            config_metadata.as_ref(),
+                        )
+                        .await,
+                    );
+                }
                 if let Some(discovery) = orchestrator_skill_discovery.as_ref() {
                     for warning in &discovery.warnings {
                         tracing::warn!(
@@ -524,8 +534,12 @@ impl RuntimeBackend {
                     .unwrap_or_default(),
             );
             session_config.tool_mode = route_resolution.tool_mode;
-            session_config.plugin_hook_source =
-                plugin_hooks::source(self.current_app_data_source()?);
+            session_config.internal_agent_policy = request.internal_agent_policy.clone();
+            session_config.plugin_hook_source = if request.internal_agent_policy.is_some() {
+                None
+            } else {
+                plugin_hooks::source(self.current_app_data_source()?)
+            };
             session_config.supports_custom_tools = route_resolution.supports_custom_tools;
             mention_selection.apply_to_session_config(&mut session_config);
             session_config.model_history_recorder = sink.model_history_recorder();

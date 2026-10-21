@@ -1,10 +1,20 @@
 use super::*;
 
 impl ProjectionStore {
+    #[cfg(test)]
     pub(in crate::runtime) fn apply_canonical_events(
         &self,
         stored: &StoredSession,
         events: &[AgentEvent],
+    ) -> Result<(), String> {
+        self.apply_canonical_events_with_media(stored, events, None)
+    }
+
+    pub(in crate::runtime) fn apply_canonical_events_with_media(
+        &self,
+        stored: &StoredSession,
+        events: &[AgentEvent],
+        sidecar_store: Option<&super::super::SidecarStore>,
     ) -> Result<(), String> {
         if events.is_empty() || super::super::session_is_ephemeral(&stored.session) {
             return Ok(());
@@ -75,11 +85,15 @@ impl ProjectionStore {
         if changes.sequence == 0 {
             return Ok(());
         }
-        self.apply_history_sync(ApplyThreadHistoryParams {
-            session_id: agent_protocol::SessionId::new(stored.session.session_id.clone()),
-            thread_id,
-            changes,
-        })
+        self.apply_history_with_runtime_sync(
+            ApplyThreadHistoryParams {
+                session_id: agent_protocol::SessionId::new(stored.session.session_id.clone()),
+                thread_id,
+                changes,
+            },
+            events,
+            sidecar_store,
+        )
         .map_err(|error| error.to_string())?;
         self.apply_goal_accounting_events_sync(stored, events)
             .map_err(|error| error.to_string())

@@ -15,13 +15,17 @@ const boundary = vi.hoisted(() => ({
   copy: vi.fn(),
   clipboard: vi.fn(),
   error: vi.fn(),
+  read: vi.fn(),
 }));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 vi.mock("sonner", () => ({ toast: { error: boundary.error } }));
 vi.mock("@/lib/desktop-host/dialog", () => ({ save: boundary.save }));
-vi.mock("@/lib/api/fileBrowser", () => ({ copyFile: boundary.copy }));
+vi.mock("@/lib/api/fileBrowser", () => ({
+  copyFile: boundary.copy,
+  readFilePreview: boundary.read,
+}));
 vi.mock("@/lib/desktop-runtime", () => ({
   hasDesktopHostInvokeCapability: () => true,
 }));
@@ -40,6 +44,8 @@ const path = "/work/source.xlsx";
 function mount({
   saveFile = vi.fn(async () => true),
   flush = vi.fn(async () => true),
+  openMode = "file" as "file" | "workspace",
+  hostId = undefined as string | undefined,
 } = {}) {
   const store = createStore();
   store
@@ -57,7 +63,10 @@ function mount({
   let current = true;
   let mounted = true;
   function Probe({ scope, filePath }: { scope: object; filePath: string }) {
-    latest = useWorkspaceFileActions(scope, filePath, () => current);
+    latest = useWorkspaceFileActions(scope, filePath, () => current, {
+      openMode,
+      hostId,
+    });
     return null;
   }
   const render = (scope: object, filePath = path) =>
@@ -95,6 +104,10 @@ beforeEach(() => {
   boundary.save.mockResolvedValue("/export/copy.xlsx");
   boundary.copy.mockResolvedValue(undefined);
   boundary.clipboard.mockResolvedValue(undefined);
+  boundary.read.mockResolvedValue({
+    content: "file contents",
+    isBinary: false,
+  });
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
     value: { writeText: boundary.clipboard },
@@ -105,6 +118,91 @@ afterEach(() => {
 });
 
 describe("树与标签共享文件动作", () => {
+  it.each(["", "正文\n😀\n".repeat(300_000)])(
+    "复制完整正文不触发保存或截断（%#）",
+    async (content) => {
+      boundary.read.mockResolvedValue({ content, isBinary: false });
+      const hook = mount();
+      await act(async () => hook.get().copyContents());
+      expect(boundary.read).toHaveBeenCalledExactlyOnceWith(
+        path,
+        Number.POSITIVE_INFINITY,
+      );
+      expect(boundary.clipboard).toHaveBeenCalledExactlyOnceWith(content);
+      expect(hook.saveFile).not.toHaveBeenCalled();
+      expect(hook.flush).not.toHaveBeenCalled();
+      expect(boundary.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { openMode: "workspace" as const },
+    { hostId: "remote:host" },
+    { hostId: "durable" },
+  ])("%j不使用本地读取冒充文件内容复制", async (options) => {
+    const hook = mount(options);
+    expect(hook.get().canCopyContents).toBe(false);
+    await act(async () => hook.get().copyContents());
+    expect(boundary.read).not.toHaveBeenCalled();
+    expect(boundary.clipboard).not.toHaveBeenCalled();
+  });
+
+  it.each(["failure", "binary"])(
+    "%s读取不覆盖剪贴板且释放动作锁",
+    async (outcome) => {
+      if (outcome === "failure")
+        boundary.read.mockRejectedValueOnce(new Error("missing file"));
+      else
+        boundary.read.mockResolvedValueOnce({ content: null, isBinary: true });
+      const hook = mount();
+      await act(async () => hook.get().copyContents());
+      expect(boundary.clipboard).not.toHaveBeenCalled();
+      expect(boundary.error).not.toHaveBeenCalled();
+      expect(hook.get().busy).toBe(false);
+      await act(async () => hook.get().copyContents());
+      expect(boundary.clipboard).toHaveBeenCalledExactlyOnceWith(
+        "file contents",
+      );
+    },
+  );
+
+  it.each(["scope", "target", "unmount"])(
+    "复制读取在途时%s变化阻止迟到写剪贴板",
+    async (change) => {
+      const reading = deferred<{ content: string; isBinary: false }>();
+      boundary.read.mockReturnValue(reading.promise);
+      const hook = mount();
+      let operation!: Promise<void>;
+      await act(async () => {
+        operation = hook.get().copyContents();
+        await hook.get().copyContents();
+      });
+      expect(boundary.read).toHaveBeenCalledTimes(1);
+      expect(hook.get().busy).toBe(true);
+      if (change === "scope") hook.render({});
+      else if (change === "target") hook.invalidate();
+      else hook.unmount();
+      await act(async () => {
+        reading.resolve({ content: "old", isBinary: false });
+        await operation;
+      });
+      expect(boundary.clipboard).not.toHaveBeenCalled();
+      expect(boundary.error).not.toHaveBeenCalled();
+    },
+  );
+
+  it("内容剪贴板写入失败沿用既有反馈并可以重试", async () => {
+    boundary.clipboard.mockRejectedValueOnce(new Error("denied"));
+    const hook = mount();
+    await act(async () => hook.get().copyContents());
+    expect(boundary.error).toHaveBeenCalledExactlyOnceWith(
+      "workspace.fileActions.actionFailed",
+    );
+    expect(hook.get().busy).toBe(false);
+    await act(async () => hook.get().copyContents());
+    expect(boundary.clipboard).toHaveBeenCalledTimes(2);
+  });
+
   it("文本save、现有文档flush、原生对话框、同一copy gateway严格串行", async () => {
     const order: string[] = [];
     const hook = mount({

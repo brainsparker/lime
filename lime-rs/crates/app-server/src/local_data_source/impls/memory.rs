@@ -1,10 +1,20 @@
 use super::super::*;
-use crate::MemoryStageTwoProvider;
+use crate::MemoryAgent;
 use app_server_protocol::{MemoryStatusParams, MemoryStatusResponse};
 use async_trait::async_trait;
 
 #[async_trait]
 impl MemoryAppDataSource for LocalAppDataSource {
+    async fn record_memory_citation_usage(
+        &self,
+        root: MemoryStoreRootParams,
+        citation: app_server_protocol::protocol::v2::MemoryCitation,
+    ) -> Result<usize, RuntimeCoreError> {
+        self.memory_backend
+            .record_citation_usage(root, citation)
+            .await
+    }
+
     async fn run_memory_stage1(
         &self,
         root: MemoryStoreRootParams,
@@ -21,7 +31,7 @@ impl MemoryAppDataSource for LocalAppDataSource {
         &self,
         root: MemoryStoreRootParams,
         route: MemoryStageOneRoute,
-        provider: &dyn MemoryStageTwoProvider,
+        provider: &dyn MemoryAgent,
     ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
         self.memory_backend.run_stage2(root, route, provider).await
     }
@@ -83,7 +93,7 @@ impl MemoryAppDataSource for LocalAppDataSource {
         &self,
         params: MemoryStoreConsolidateParams,
         route: MemoryStageOneRoute,
-        provider: &dyn MemoryStageTwoProvider,
+        provider: &dyn MemoryAgent,
     ) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError> {
         self.memory_backend
             .consolidate(params, route, provider)

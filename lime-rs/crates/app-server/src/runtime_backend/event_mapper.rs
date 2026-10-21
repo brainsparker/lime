@@ -69,6 +69,31 @@ pub(super) fn emit_runtime_agent_event_with_coding_mirror_and_plan_parser_with_s
     {
         return sink.emit_preappended_by_id(durable_event_id);
     }
+    if let RuntimeAgentEvent::ContextCompactionCompleted {
+        durable_event_id: Some(durable_event_id),
+        ..
+    } = event
+    {
+        // Same-turn compaction commits its replacement and canonical event while the
+        // RuntimeCore state lock is held. Forward that exact event through the current
+        // sink so the live host sees it without appending a duplicate.
+        return sink.emit_preappended_by_id(durable_event_id);
+    }
+    if let RuntimeAgentEvent::ContextCompactionCompleted {
+        durable_event_id: None,
+        ..
+    } = event
+    {
+        // Standalone runtime tests may provide a capability without an EventLog receipt.
+        // Keep that signal transient; a missing receipt must never create a second durable
+        // compaction marker.
+        let events =
+            tool_events::runtime_events_from_agent_event_with_soul_style(event, soul_style)?;
+        for event in events {
+            sink.emit_transient(event)?;
+        }
+        return Ok(());
+    }
     let coding_events = coding_event_mirror.process_event(event);
     let persistence_event = coding_events::runtime_event_for_persistence(event);
     for event in coding_events.before_raw {
@@ -299,6 +324,11 @@ fn emit_finished_message(
         }
         if let Some(text) = message.text {
             payload["text"] = text.into();
+        }
+        if let Some(citation) = message.memory_citation {
+            if let Ok(value) = serde_json::to_value(citation) {
+                payload["memoryCitation"] = value;
+            }
         }
         sink.emit(crate::RuntimeEvent::new("message.completed", payload))?;
     }

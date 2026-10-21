@@ -34,22 +34,9 @@ impl RuntimeCore {
         if !self.session_memory_enabled(&params.session_id) {
             return;
         }
-        let Some(root) = memory_summary_root(params) else {
+        let roots = memory_summary_roots(params);
+        let Some((root, response)) = find_memory_summary(self, roots).await else {
             return;
-        };
-        let response = match self
-            .app_data_source
-            .read_memory_store(MemoryStoreReadParams {
-                root: root.clone(),
-                path: SUMMARY_PATH.to_string(),
-                line_offset: None,
-                max_lines: None,
-                max_tokens: Some(SUMMARY_MAX_TOKENS),
-            })
-            .await
-        {
-            Ok(response) => response,
-            Err(_) => return,
         };
         let summary = response.content.trim();
         if summary.is_empty() {
@@ -467,18 +454,48 @@ fn soul_packet_from_metadata(
     super::soul::soul_packet_from_metadata(config_metadata, runtime_metadata)
 }
 
-fn memory_summary_root(params: &TurnStartRequest) -> Option<MemoryStoreRootParams> {
-    workspace_root_from_runtime_options(params.runtime_options.as_ref())
-        .map(|workspace_root| MemoryStoreRootParams {
+fn memory_summary_roots(params: &TurnStartRequest) -> Vec<MemoryStoreRootParams> {
+    let mut roots = Vec::with_capacity(2);
+    if let Some(root) = workspace_root_from_runtime_options(params.runtime_options.as_ref()) {
+        roots.push(MemoryStoreRootParams {
             scope: MemoryStoreScope::Workspace,
-            workspace_root: Some(workspace_root),
-        })
-        .or_else(|| {
-            Some(MemoryStoreRootParams {
-                scope: MemoryStoreScope::Global,
-                workspace_root: None,
+            workspace_root: Some(root),
+        });
+    }
+    roots.push(MemoryStoreRootParams {
+        scope: MemoryStoreScope::Global,
+        workspace_root: None,
+    });
+    roots
+}
+
+async fn find_memory_summary(
+    runtime: &RuntimeCore,
+    roots: Vec<MemoryStoreRootParams>,
+) -> Option<(
+    MemoryStoreRootParams,
+    app_server_protocol::MemoryStoreReadResponse,
+)> {
+    for root in roots {
+        let response = match runtime
+            .app_data_source
+            .read_memory_store(MemoryStoreReadParams {
+                root: root.clone(),
+                path: SUMMARY_PATH.to_string(),
+                line_offset: None,
+                max_lines: None,
+                max_tokens: Some(SUMMARY_MAX_TOKENS),
             })
-        })
+            .await
+        {
+            Ok(response) => response,
+            Err(_) => continue,
+        };
+        if !response.content.trim().is_empty() {
+            return Some((root, response));
+        }
+    }
+    None
 }
 
 fn workspace_root_from_runtime_options(runtime_options: Option<&RuntimeOptions>) -> Option<String> {
@@ -720,6 +737,9 @@ mod tests {
         assert!(prompt.starts_with("base\n\n## Long-Term Memory Summary"));
         assert!(prompt.contains("不是用户本轮输入"));
         assert!(prompt.contains("memory tools"));
+        assert!(prompt.contains("memoryStore/search"));
+        assert!(prompt.contains("oai-mem-citation"));
+        assert!(prompt.contains("memoryStore/addNote"));
         assert!(prompt.contains("Prefer short answers."));
         assert!(prompt.contains("已被截断"));
     }

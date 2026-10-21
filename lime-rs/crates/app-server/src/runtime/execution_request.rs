@@ -3,6 +3,8 @@ use agent_runtime::reply_input::RuntimeReplyInput;
 
 #[derive(Debug, Clone)]
 pub struct ExecutionRequest {
+    /// RuntimeCore-only capability; never decoded from user metadata.
+    pub internal_agent_policy: Option<tool_runtime::internal_agent::InternalAgentPolicy>,
     pub host: RuntimeHostContext,
     pub session: app_server_protocol::AgentSession,
     pub turn: app_server_protocol::AgentTurn,

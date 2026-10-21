@@ -569,6 +569,10 @@ pub enum AgentEvent {
         trigger: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         detail: Option<String>,
+        /// Set when the host already committed the canonical event to EventLog.
+        /// The App Server forwards the receipt through its existing preappended path.
+        #[serde(skip)]
+        durable_event_id: Option<String>,
     },
 
     #[serde(rename = "runtime_status")]

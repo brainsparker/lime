@@ -28,86 +28,15 @@ export function buildWorkspaceHeaderView({
   workspaceHealthError?: boolean | null;
 }): CanvasWorkbenchHeaderView {
   const workspaceRootLabel = resolvePathLeaf(projectRootPath) || "未绑定";
-  const hasProjectRootPath = Boolean(projectRootPath?.trim());
-  const workspaceBindingValue = workspacePathMissing
-    ? "路径缺失"
-    : workspaceHealthError
-      ? "状态异常"
-      : hasProjectRootPath
-        ? "已连接"
-        : "未绑定";
 
   return {
-    eyebrow: "Project Workspace",
-    tabLabel: "文件",
-    tabBadge:
-      workspacePathMissing || workspaceHealthError
-        ? workspaceBindingValue
-        : hasProjectRootPath
-          ? workspaceRootLabel
-          : undefined,
-    tabBadgeTone:
-      workspacePathMissing || workspaceHealthError
-        ? "rose"
-        : hasProjectRootPath
-          ? "sky"
-          : undefined,
-    title: hasProjectRootPath ? "项目工作区文件" : "当前没有可浏览的项目文件",
-    subtitle: hasProjectRootPath
-      ? projectRootPath || ""
-      : "绑定工作区目录后，这里会显示真实文件树。",
-    badges: [
-      {
-        key: "workspace-root",
-        label: hasProjectRootPath ? workspaceRootLabel : "未绑定工作区",
-        tone: hasProjectRootPath ? "accent" : "default",
-      },
-      ...(workspacePathMissing
-        ? [
-            {
-              key: "workspace-missing",
-              label: "路径缺失",
-              tone: "default" as const,
-            },
-          ]
-        : workspaceHealthError
-          ? [
-              {
-                key: "workspace-health-error",
-                label: "状态异常",
-                tone: "default" as const,
-              },
-            ]
-          : []),
-    ],
-    summaryStats: [
-      {
-        key: "workspace-root",
-        label: "工作区",
-        value: workspaceRootLabel,
-        detail:
-          projectRootPath?.trim() || "绑定工作区后，这里会展示真实文件树。",
-        tone: hasProjectRootPath ? "accent" : "default",
-      },
-      {
-        key: "workspace-binding",
-        label: "目录状态",
-        value: workspaceBindingValue,
-        detail: workspacePathMissing
-          ? "当前工作区路径缺失，需重新选择目录。"
-          : workspaceHealthError
-            ? "当前工作区状态异常，建议先修复后再继续浏览。"
-            : hasProjectRootPath
-              ? "画布会直接读取项目里的真实文件。"
-              : "尚未绑定工作区目录。",
-        tone:
-          workspacePathMissing || workspaceHealthError ? "default" : "success",
-      },
-    ],
     panelCopy: {
       unavailableText: "当前工作区路径不可用，暂时无法浏览项目文件。",
-      emptyText: "当前会话没有绑定可浏览的工作区目录。",
-      sectionEyebrow: "项目目录",
+      emptyText: projectRootPath?.trim()
+        ? `当前工作区 ${workspaceRootLabel} 没有可浏览的文件。`
+        : "当前会话没有绑定可浏览的工作区目录。",
+      sectionEyebrow:
+        workspacePathMissing || workspaceHealthError ? "项目目录" : undefined,
       loadingText: "正在加载目录...",
       emptyDirectoryText: "暂无目录内容。",
     },

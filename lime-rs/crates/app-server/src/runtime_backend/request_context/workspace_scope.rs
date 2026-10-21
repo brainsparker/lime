@@ -8,6 +8,12 @@ pub(in crate::runtime_backend) fn request_workspace_scope(
     request: &ExecutionRequest,
     host_request: Option<&RuntimeRequest>,
 ) -> RuntimeWorkspaceScope {
+    if let Some(policy) = request.internal_agent_policy.as_ref() {
+        return RuntimeWorkspaceScope {
+            working_dir: Some(policy.root().to_path_buf()),
+            project_root: Some(policy.root().to_path_buf()),
+        };
+    }
     let working_dir = host_request
         .and_then(host_working_dir)
         .or_else(|| metadata_working_dir(request.runtime_metadata()))

@@ -74,7 +74,27 @@ pub struct RuntimeHookEventContext {
     pub tool_arguments: Option<String>,
     pub tool_output: Option<String>,
     pub content: Option<String>,
+    pub compact: Option<RuntimeCompactHookContext>,
     pub stop: Option<RuntimeStopHookContext>,
+    /// Fields supplied to a Codex-compatible Interrupt hook after the active
+    /// turn has been cancelled. Interrupt is a turn-scoped event and must not
+    /// reuse Stop's control semantics.
+    pub interrupt: Option<RuntimeInterruptHookContext>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeCompactHookContext {
+    pub invocation_id: String,
+    pub model: String,
+    pub trigger: String,
+    pub transcript_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeInterruptHookContext {
+    pub model: String,
+    pub permission_mode: String,
+    pub transcript_path: Option<PathBuf>,
 }
 
 impl RuntimeHookEventContext {
@@ -222,7 +242,10 @@ fn admit(
         }
         RuntimeHookTrustStatus::Managed | RuntimeHookTrustStatus::Trusted => {}
     }
-    if hook.handler_type != RuntimeHookHandlerType::Command {
+    if matches!(
+        hook.handler_type,
+        RuntimeHookHandlerType::Prompt | RuntimeHookHandlerType::Agent
+    ) {
         return Err(RuntimeHookOutcome::Failed {
             reason: RuntimeHookFailure::UnsupportedHandler(hook.handler_type),
         });
@@ -374,6 +397,9 @@ mod tests {
             execution_mode: RuntimeHookExecutionMode::Sync,
             matcher: None,
             command: Some("true".to_string()),
+            mcp_server: None,
+            mcp_tool: None,
+            mcp_input: None,
             timeout_sec: 10,
             status_message: None,
             additional_context_limit: None,

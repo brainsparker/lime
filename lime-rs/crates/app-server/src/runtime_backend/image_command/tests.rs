@@ -932,5 +932,6 @@ fn request_with_metadata(metadata: Value) -> ExecutionRequest {
         command_publisher: None,
         rollout_budget_reminder_source: None,
         mid_turn_compaction_commit: None,
+        internal_agent_policy: None,
     }
 }

@@ -194,8 +194,8 @@ describe("Workbench 保存前导航", () => {
   it.each([
     {
       name: "tab 选择",
-      action: (s: ShellProps) => s.onSelectTab("outputs"),
-      next: "outputs",
+      action: (s: ShellProps) => s.onSelectTab("summary"),
+      next: "summary",
     },
     {
       name: "新建工具",
@@ -256,7 +256,7 @@ describe("Workbench 保存前导航", () => {
     await invoke((s) => {
       s.onSelectFile("/workspace/next.pptx");
       s.onNewToolTab("terminal");
-      s.onSelectTab("outputs");
+      s.onSelectTab("summary");
     });
     expect(flush).toHaveBeenCalledTimes(1);
     expect(mounted.props.loadFilePreview).not.toHaveBeenCalled();
@@ -558,7 +558,7 @@ describe("Workbench 保存前导航", () => {
       store,
     );
     await settle();
-    expect(shell().contentTab).toBe("outputs");
+    expect(shell().contentTab).toBe("summary");
     mounted.rerender({ artifacts: [artifact("original", originalPath)] });
     await settle();
     expect(visiblePath()).toBe(originalPath);

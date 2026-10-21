@@ -2677,3 +2677,16 @@ reconcile、plugin/skill/read和share全组；完整Hooks/onboarding/Skill metad
 
 - Lime Rust extractor/packer 与 LimeCore 当前 archive owner 均以 Codex tar.gz 为唯一生产格式：`application/gzip`、100 MiB 压缩输入、512 MiB 展开预算、10,000 entries、路径/链接/特殊文件/重复路径/gzip trailer/多成员流 fail closed；ZIP 仅保留拒绝回归，不进入兼容分支。
 - LimeCore 定向 `control-plane-svc/internal/service` archive/scan/components 测试通过；Lime 侧共享 75 包 corpus 与 Core 38 个 manifest directory 场景已有计划证据。真实 Core/MySQL、远端下载/授权和发布到客户端 Turn 仍是未完成退出条件，不能把定向测试写成跨仓端到端 green。
+
+### marketplace 变更后的运行态刷新（2026-10-21）
+
+直接对照 Codex `app-server/src/request_processors/marketplace_processor.rs`：marketplace add/remove/upgrade 完成配置提交后，必须让插件缓存、Skills watch、MCP runtime 与 Apps/Skills 投影重新读取；升级路径已有该接线，add/remove 之前只返回结果，导致同一 App Server 进程内继续使用旧插件/技能/应用快照。本轮只改 `processor/plugin.rs`：add 在 `alreadyAdded=false`、remove 在实际删除 installed root 时执行 `invalidate_plugin_components`、刷新插件技能 watch、发布 Apps 更新，并通过 `dispatch_skill_catalog_mutation` 发送 SkillsChanged；重复 add 和仅删除配置而无已安装快照的 remove 保持无变化，不伪造运行态刷新。
+
+该切片是 marketplace 变更通知闭环，不等于 Codex marketplace policy、远端 catalog、LimeCore 授权或真实客户端 Turn 的端到端完成。P03/P04/P05 与整体目标继续 **active / partial**。
+### 2026-10-21 Codex Hook Interrupt/McpTool 协议切片
+
+- **Codex 事实源**：直接对照 `codex-rs/app-server-protocol/src/protocol/v2/plugin.rs` 的 `HookHandlerMetadata` flattened tagged union、`codex-rs/hooks/src/engine/mod.rs` 的 `Interrupt`/`McpTool` handler 与 `config/src/hook_config.rs` 的 `mcp_tool` 配置；不以 Lime 旧插件协议推断。
+- **Current 改动**：Hook 事件增加 `interrupt`；配置解析增加 `mcp_tool`（server/tool/input/timeout/statusMessage）；不可变 `HookSnapshot` 固化 MCP 目标和参数；发现阶段按 Codex 规则计算 MCP hash、拒绝 SessionEnd MCP、保留 trusted/untrusted 语义；App Server `HookMetadata` 收敛为 Codex flattened `HookHandlerMetadata`（Command/McpTool/Prompt/Agent），不保留旧 `handlerType + command` 双字段。
+- **协议同步**：重新生成 Rust schema、manifest 和 TS protocol types，新增 `HookHandlerMetadata.json`；`npm run check:protocol-types` 与 `npm run test:contracts` 通过（App Server client 296 项）。
+- **验证**：`agent-protocol` Hook 回归 1/1、`app-server-protocol` Hook wire/flatten 回归 3/3、`tool-runtime` Hook 定向 50/50（含 MCP reporter/template 与 MCP discovery）、marketplace plugin owner 3/3；`cargo check -p app-server -p lime-agent` 与 `npm run test:contracts` 通过。MCP reporter 已通过 `McpHookExecutor` 接入同一 AgentRuntimeState 的 thread-scoped MCP runtime，使用同一 Codex 输出解析器映射 block/rewrite/abort/context。
+- **状态**：本切片 current；无兼容包装。剩余是 MCP hook 真实 stdio/CLI/GUI evidence、MCP 错误/结构化输出跨 provider capture，以及 Interrupt 取消生命周期和 HookPrompt durable receipt 的产品验收；不把受控 executor 单测写成完整产品闭环。

@@ -53,6 +53,7 @@ mod history_tests;
 #[cfg(test)]
 mod hosted_web_search_tests;
 mod lowering;
+mod native_history;
 #[cfg(test)]
 mod ollama_responses_tests;
 #[cfg(test)]
@@ -342,7 +343,7 @@ impl CurrentProviderRequest {
             message
                 .content
                 .iter()
-                .any(|content| matches!(content, CurrentProviderContent::RawResponseItem(_)))
+                .any(|content| matches!(content, CurrentProviderContent::RawResponseItem(item) if item.get("native").is_none()))
         })
     }
 }

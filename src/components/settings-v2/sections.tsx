@@ -5,6 +5,8 @@ import {
   User,
   BarChart3,
   Palette,
+  Globe,
+  Keyboard,
   Brain,
   Image,
   Plug,
@@ -52,6 +54,15 @@ const AppearanceSettings = lazy(() =>
 const loadMemory = () => import("./general/memory");
 const MemorySettings = lazy(() =>
   loadMemory().then((module) => ({ default: module.MemorySettings })),
+);
+
+const loadBrowser = () => import("./general/browser");
+const BrowserUseSettings = lazy(() =>
+  loadBrowser().then((module) => ({ default: module.BrowserUseSettings })),
+);
+const loadKeyboardShortcuts = () => import("./general/keyboard-shortcuts");
+const KeyboardShortcutsSettings = lazy(() =>
+  loadKeyboardShortcuts().then((module) => ({ default: module.KeyboardShortcutsSettings })),
 );
 
 const loadArchivedConversations = () =>
@@ -172,6 +183,24 @@ export const settingsSections: readonly SettingsSection[] = [
     loadingKey: "settings.layout.loading.appearance",
     preload: loadAppearance,
     render: () => <AppearanceSettings />,
+  },
+  {
+    key: SettingsTabs.Browser,
+    group: SettingsGroupKey.General,
+    labelKey: "settings.tab.browser",
+    icon: Globe,
+    loadingKey: "settings.layout.loading.browser",
+    preload: loadBrowser,
+    render: () => <BrowserUseSettings />,
+  },
+  {
+    key: SettingsTabs.KeyboardShortcuts,
+    group: SettingsGroupKey.General,
+    labelKey: "settings.tab.keyboardShortcuts",
+    icon: Keyboard,
+    loadingKey: "settings.layout.loading.keyboardShortcuts",
+    preload: loadKeyboardShortcuts,
+    render: () => <KeyboardShortcutsSettings />,
   },
   {
     key: SettingsTabs.Memory,

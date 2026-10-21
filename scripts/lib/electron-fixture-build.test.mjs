@@ -8,6 +8,10 @@ import {
   ensureElectronFixtureBuild,
   inspectElectronFixtureBuildFreshness,
 } from "./electron-fixture-build.mjs";
+import {
+  beginRendererBuild,
+  completeRendererBuild,
+} from "./electron-renderer-build.mjs";
 
 const tempRoots = [];
 
@@ -39,6 +43,7 @@ function writeRequiredFiles(rootDir, mtime) {
     "export {};",
     mtime,
   );
+  completeRendererBuild(beginRendererBuild(rootDir));
 }
 
 function createRecordingRunner() {
@@ -65,6 +70,24 @@ afterEach(() => {
 
 describe("Electron renderer entry assets", () => {
   const artifactTime = new Date("2026-01-01T00:10:00.000Z");
+
+  it.each(["building", "invalid", "corrupt"])(
+    "does not trust newer artifacts with a %s renderer build receipt",
+    (status) => {
+      const rootDir = createTempRoot();
+      writeRequiredFiles(rootDir, artifactTime);
+      writeFile(
+        path.join(rootDir, ".lime", "electron-renderer-build.json"),
+        status === "corrupt" ? "{" : JSON.stringify({ status }),
+        artifactTime,
+      );
+      expect(inspectElectronFixtureBuildFreshness({ rootDir })).toMatchObject({
+        ready: false,
+        staleSegments: ["renderer"],
+        segments: { renderer: { ready: false } },
+      });
+    },
+  );
 
   it.each(["postcss.config.js", "tailwind.config.js"])(
     "invalidates the renderer when %s changes",
@@ -103,6 +126,7 @@ describe("Electron renderer entry assets", () => {
       "export const app = true;",
       new Date("2026-01-01T00:00:00.000Z"),
     );
+    completeRendererBuild(beginRendererBuild(rootDir));
     return rootDir;
   }
 

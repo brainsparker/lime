@@ -8,7 +8,7 @@ use agent_protocol::{ModeKind, ThreadId};
 use agent_runtime::session_loop::RuntimeSessionInputHandle;
 use futures::StreamExt;
 use rmcp::model::{CallToolResult, ErrorData, ServerNotification};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
@@ -27,6 +27,7 @@ pub(super) mod orchestration;
 
 #[derive(Clone)]
 pub(super) struct CurrentTurnToolExecutor {
+    pub(super) internal_agent_policy: Option<tool_runtime::internal_agent::InternalAgentPolicy>,
     pub(super) state: AgentRuntimeState,
     pub(super) policy: RequestToolPolicy,
     pub(super) event_sender: UnboundedSender<AgentEvent>,
@@ -46,6 +47,17 @@ impl RuntimeToolExecutor for CurrentTurnToolExecutor {
         request: RuntimeToolExecutionRequest<'a>,
     ) -> RuntimeToolExecutionFuture<'a> {
         Box::pin(async move {
+            if let Some(policy) = self.internal_agent_policy.as_ref() {
+                if !policy.allows_tool(request.tool_name) {
+                    return Err(RuntimeToolExecutionError::new(
+                        format!("internal memory agent cannot call {}", request.tool_name),
+                        Some(RuntimeToolPolicyErrorKind::PermissionDenied(
+                            "internal_agent".to_string(),
+                        )),
+                    )
+                    .before_handler());
+                }
+            }
             if self.policy.matches_any_disallowed_tool(request.tool_name) {
                 return Err(RuntimeToolExecutionError::new(
                     format!("当前请求策略禁止工具调用: {}", request.tool_name),
@@ -63,6 +75,54 @@ impl RuntimeToolExecutor for CurrentTurnToolExecutor {
                     )),
                 )
                 .before_handler());
+            }
+
+            if request.tool_name == mcp_step_snapshot::GET_CONTEXT_REMAINING_TOOL_NAME {
+                let tokens_left = context_tokens_left(&request, self.pending_input.as_ref()).await;
+                let output = json!({"tokens_left": tokens_left});
+                let mut metadata = HashMap::new();
+                metadata.insert("contextRemainingTokens".to_string(), output.clone());
+                return Ok(RuntimeToolExecutionResult::new(
+                    true,
+                    output.to_string(),
+                    None,
+                    metadata,
+                ));
+            }
+
+            if request.tool_name == mcp_step_snapshot::NEW_CONTEXT_WINDOW_TOOL_NAME {
+                if request
+                    .turn_context
+                    .and_then(|context| context.metadata.get("lime_runtime"))
+                    .and_then(|runtime| runtime.get("auto_compact"))
+                    .and_then(Value::as_bool)
+                    == Some(false)
+                {
+                    return Err(RuntimeToolExecutionError::new(
+                        "Context resets are disabled for this thread.",
+                        Some(RuntimeToolPolicyErrorKind::PermissionDenied(
+                            "auto_compaction_disabled".to_string(),
+                        )),
+                    )
+                    .before_handler());
+                }
+                let input = self.pending_input.as_ref().ok_or_else(|| {
+                    RuntimeToolExecutionError::new(
+                        "new_context requires the active session input owner",
+                        Some(RuntimeToolPolicyErrorKind::ExecutionFailed(
+                            "session_input_owner_missing".to_string(),
+                        )),
+                    )
+                    .before_handler()
+                })?;
+                input.request_context_rollover().await;
+                return Ok(RuntimeToolExecutionResult::new(
+                    true,
+                    "A new context window will start without summarizing conversation history."
+                        .to_string(),
+                    None,
+                    HashMap::new(),
+                ));
             }
 
             if tool_runtime::request_permissions::is_request_permissions_tool(request.tool_name) {
@@ -276,7 +336,9 @@ impl RuntimeToolExecutor for CurrentTurnToolExecutor {
                 .await;
             }
 
-            let permission_grant = if let Some(identity) = request.context.tool_identity() {
+            let permission_grant = if self.internal_agent_policy.is_some() {
+                EffectivePermissionGrant::default()
+            } else if let Some(identity) = request.context.tool_identity() {
                 self.state
                     .effective_permission_grant(request.context.session_id(), identity.turn_id())
                     .await
@@ -293,6 +355,32 @@ impl RuntimeToolExecutor for CurrentTurnToolExecutor {
             orchestration::orchestrate_current_tool_execution(self, request, permission_grant).await
         })
     }
+}
+
+async fn context_tokens_left(
+    request: &RuntimeToolExecutionRequest<'_>,
+    pending_input: Option<&RuntimeSessionInputHandle>,
+) -> Option<i64> {
+    let context_window = request.turn_context.and_then(|context| {
+        context
+            .metadata
+            .get("lime_runtime")
+            .and_then(|runtime| runtime.get("context_policy"))
+            .and_then(|policy| policy.get("model_context_window"))
+            .and_then(Value::as_i64)
+            .or_else(|| {
+                context
+                    .metadata
+                    .get("lime_runtime")
+                    .and_then(|runtime| runtime.get("model_context_window"))
+                    .and_then(Value::as_i64)
+            })
+    })?;
+    let input_tokens = match pending_input {
+        Some(input) => input.context_input_tokens().await,
+        None => 0,
+    };
+    Some(context_window.saturating_sub(input_tokens.min(i64::MAX as u64) as i64))
 }
 
 #[cfg(test)]

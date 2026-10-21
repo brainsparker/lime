@@ -9,8 +9,7 @@ export type CanvasWorkbenchFixedTab =
   | "code"
   | "workspace"
   | "changes"
-  | "outputs"
-  | "logs";
+  | "summary";
 export type CanvasWorkbenchNewToolTab = "terminal" | "project-files";
 export type CanvasWorkbenchToolTabId = `${CanvasWorkbenchNewToolTab}:${number}`;
 export type CanvasWorkbenchToolTab =
@@ -69,7 +68,7 @@ export function resolveInitialCanvasWorkbenchTab(
     );
   }
 
-  return shouldPreferSessionTab ? "outputs" : "workspace";
+  return shouldPreferSessionTab ? "summary" : "workspace";
 }
 
 export function translateCanvasWorkbenchText(

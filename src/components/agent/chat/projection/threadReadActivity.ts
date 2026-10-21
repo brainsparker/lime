@@ -260,7 +260,7 @@ export function hasRunningThreadReadActivity(
   return false;
 }
 
-export function hasRunningSessionOverviewActivity(
+export function hasRunningSessionReadActivity(
   session: unknown,
   options: ThreadReadActivityOptions = {},
 ): boolean {

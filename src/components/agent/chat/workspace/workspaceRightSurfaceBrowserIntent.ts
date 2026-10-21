@@ -11,6 +11,7 @@ export interface WorkspaceRightSurfaceBrowserIntent {
   reason?: string | null;
   priority: "foreground" | "background";
   launchUrl?: string | null;
+  launchApplied?: boolean;
   title?: string | null;
   historicalProjection?: BrowserTabHistoricalProjection | null;
 }

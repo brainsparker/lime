@@ -870,6 +870,28 @@ App Server transport沿既有SubscribeAndSend为start/resume/fork成功响应中
 AgentControl Thread沿用generic session hydration。fork seed不得送入全局Turn projection
 repair以重建历史身份，cold nested fork同样保留原历史ID。此职责从fork大文件迁出，
 不改变GUI/TUI共享App Server/runtime/存储边界；root确认依赖方向，2026-10-09。
+2026-10-21 fork 补齐继续复用上述 owner：`thread_fork/source` 选择 threadId 或优先的
+rollout path；`canonical_rollout/read` 复用既有记录/digest 校验与
+`thread-store::ThreadHistoryBuilder`，从实际文件构造历史，不将 SQLite 路径索引视为文件存在证明。
+显式路径可指向 agent home 外的有效副本；分页源拒绝 stale path。已加载源的附加模型记录
+限制在文件 history sequence 内，避免旧副本混入后来 checkpoint。归档源与分页 ephemeral
+加载 turns 的请求在创建分支前拒绝。
+显式旧副本仍按 Codex 读取索引中的当前 model/effort；Lime 的 provider route、model-bound
+collaboration 设置与 service tier 一并覆盖，避免新 provider 搭配旧模型。没有本地索引的
+standalone source 使用文件自身设置，不从目标实例的默认模型猜测来源。
+同一显式 reader 按 Codex 的 plain-first 顺序选择 `.jsonl` 或 `.jsonl.zst`，保留已打开的
+物理文件并流式解码，压缩/普通表示不建立第二历史 owner，也不将展开结果写回源目录。
+同一 fork seed 按持久性分流：durable 进入既有 projection/rollout/EventLog；ephemeral
+只进入现有内存 session，返回 turns 也经同一 canonical builder 组装。
+`thread_fork/media` 将 canonical 输入、fork seed 与会话输入中的源 sidecar 图片内联为
+data URL，目标不建 sidecar；源文件不变。`forkedFromId` 随原 session metadata 投影，
+临时 metadata-only read 保留来源，不增身份表。独立 rollout 当前只能重放其已包含的
+canonical 记录；缺失的 opaque model receipt、session checkpoint 或媒体文件不得伪造。
+当前 `ModelHistoryRecord` 的 user 记录只允许文本；fork 校验并复制既有权威记录，
+不新增虚构的图片记录变体。临时 Turn 的执行来源查询使用同一内存 canonical Thread，
+保留 fork origin 和 root-agent 标记，不以“没有数据库行”推断身份。
+root 于 2026-10-21 确认本片无新 crate、RPC、后端或存储 owner，属于现有边界内的实现补齐；
+验证和剩余范围见 `internal/exec-plans/codex-thread-fork-alignment.md`，不是完整复刻验收。
 第80复用同一InitialOperation::UserTurn.output_schema，exec/prompt::load_output_schema
 读取JSON文件后由typed turn/start.outputSchema交给共享runtime/provider owner；不建立
 CLI schema解释器或配置副本，fork-only输出选项在连接前拒绝。root确认同一依赖方向，
@@ -2220,6 +2242,8 @@ current provider 不得绕过 `RuntimeTool::execute_call` 直接调用 executor�
 
 current provider 的工具面按 model sampling step 冻结，不按整个用户 Turn 永久冻结。每次发 provider request 前必须生成一个 `RuntimeToolStepSnapshot`，同一 snapshot 同时拥有 model-visible definitions 与 exact executor；本 step 返回的 tool call 只能调用该 definitions allowlist 中的名称，未广告名称仍产生 canonical failed lifecycle，但不得进入真实 native/gateway/MCP executor。MCP snapshot 的唯一 owner 是 `tool-runtime::mcp_connection`：它按 server 隔离 discovery error/timeout，并把 prefixed definition、per-tool caller policy、dispatch route 与 immutable connection handle 一起冻结；同一步不得回查 live registry。`tool_search` 只更新本 Turn 的 deferred selection，旧 snapshot 不变，下一 sampling step 才可重新 capture。MCP bridge 的已归一化 tool timeout 固化在 connection client 中，因此 registry replace 后旧 step 继续使用旧 handle/timeout，新 step 才看到新配置。
 
+每个 sampling step 的 `RuntimeSessionStepContext` 是同一不可变授权边界：provider loop 只 capture 一次，并将相同的 `step_index/context_epoch/mailbox_delivery_phase` 传入工具 snapshot、Hook snapshot 和本地 function/custom tool call 的 `runtime_step_context` metadata。该 metadata 只存在于 Lime 本地执行与 lifecycle 事实，不进入 provider wire；MCP route、Hook evaluation、工具执行和 durable receipt 必须能按同一 step identity 审计。snapshot context 不一致时 provider sampling fail closed；配置、AGENTS/world-state 或扩展 registry 的热更只允许下一 step capture 看到，旧 step 不得回查 live owner。Codex 的 `get_context_remaining` 与 `new_context` 只在当前模型存在可信 `lime_runtime.context_policy` 且未禁用 auto-compaction 时注册：前者从同一 `RuntimeSessionInputHandle` 的当前 context epoch 输入计数返回剩余预算，未知预算返回 `null`，不得按模型名或协议猜测；后者只向该 handle 请求 rollover，下一 sampling 原子推进 `context_epoch`，并在新 epoch 清零 context-scoped 输入计数，保留 turn 累计 usage。工具执行没有 active session input owner 或线程禁用自动压缩时 fail closed。
+
 provider tool-call repair 也只能消费该 sampling step snapshot。`model-provider` 必须把 wire 中的
 `raw_arguments` 与解析后的 input 一起投影到 canonical `LlmEvent::ToolCall`，malformed JSON、空名称和
 scalar arguments 不能提前升级为整步 provider error。`agent-runtime` 随后调用 `tool-runtime::repair_tool_call`，
@@ -2582,7 +2606,13 @@ public `thread/fork` 的 current owner 是
 canonical ThreadStore`，与 AgentControl child topology fork 完全独立。它从 canonical
 Thread/Turn/Item 复制 full、`lastTurnId` 或 `beforeTurnId` 的 terminal prefix，并只改 target
 thread/session identity；不得以 raw EventLog 或 AgentControl 的有损 history 充当第二个 fork owner。
-`path` 与 ephemeral persistent store 尚未落地，必须 fail closed。普通 fork 不继承 Goal；只在
+显式 `path` 通过同一 rollout reader 读取实际普通/压缩文件，优先于 threadId；ephemeral
+沿原内存 session owner 保留 seed，不创建 projection/rollout/EventLog/sidecar。
+普通 fork 的历史配置与当前执行设置分离：按 Codex `InitialHistory::Forked` 从 Default 模式
+开始，不复制当前 `collaborationMode` 中的 Plan 指令。fork 模型/provider/tier 覆盖复用
+`session_operations::apply_thread_settings_patch`，模型 identity 改变时清理旧 effort、tier 与
+agent route；多模型 route 和当前模型不能被源历史的 collaboration model 重新覆盖。
+普通 fork 不继承 Goal；只在
 persistent `deferGoalContinuation=true` 时，`goal_fork.rs` 持 source Goal idle permit，在同一
 SQLite `IMMEDIATE` 事务中 flush source usage、复制 exact Goal snapshot、写带 Goal 外键的 durable
 deferral marker。fork/resume 都不自动启动 Goal；首个真实 `turn.accepted` 幂等消费 marker，随后仍由
@@ -2593,9 +2623,14 @@ prefix 边界，baseline slot 保持 EventLog sequence 稠密，UserMessage、Ag
 与 McpToolCall 由 `provider_history` 唯一 lowering，MCP 名称必须经 `lime_mcp::naming` 规范化。
 restart 时先 hydrate target EventLog tail，再按 sequence 合并 canonical seed；ProjectionRepair 也必须
 用相同 seed 补齐 prefix 后再修复 canonical history，不能用只有 target tail 的 raw EventLog 删除 copied
-Turn/Item。source raw EventLog 不复制到 target。当前 canonical payload 无法无损表达的 user/assistant
-media、ContextCompaction replacement history、CollabAgentToolCall arguments 与未知 Extension 均在
+Turn/Item。source raw EventLog 不整体复制到 target；权威 model-history、用量、compaction checkpoint
+和 interrupted boundary 按所选前缀校验并保留。user sidecar 图片在 durable fork 复制，在 ephemeral
+fork 内联；完整且有 durable lineage 的 compaction replacement 使用同一恢复 owner。当前 canonical
+payload 无法无损表达的 assistant media、CollabAgentToolCall arguments 与未知 Extension 均在
 `thread/fork` 创建边界 fail closed，不允许猜测、占位或 compat fallback。
+
+用量恢复复用 `thread_usage` 的完整计数解析；Codex `ThreadTokenUsage.model_context_window`
+是可选字段，模型窗口未知时返回 None 并保留有效计数，不按模型名称推定窗口或丢弃整份用量。
 
 Fork provider-history architecture confirmation: root, 2026-07-21. The current owner remains
 `canonical ThreadStore -> RuntimeCore seed -> provider_history`; ProjectionRepair only preserves this
@@ -5835,9 +5870,9 @@ flowchart LR
 
 ### 32.2 Codex Memory phase-2 与 Agent Loop Stop 边界（2026-10-20）
 
-Memory 的 phase-2 业务 owner 是 `App Server -> RuntimeBackend -> LocalMemoryBackend -> memory_state.sqlite`。RuntimeCore 只解析当前 eligible root session 的 provider route；provider-backed consolidation harness 只接收 durable stage-1 snapshot，输出由 `stage_two_output` 严格解析，LocalMemoryBackend 负责 source identity、大小、symlink、archive/review、selected-source watermark 和 audit。所有 entry 必须先完整校验，确认 unknown/duplicate/missing/symlink/oversized/provider failure 不会产生部分 archive 或 review 写入后，才执行文件移动和状态提交。`memory/status` 只读取状态表的 consolidation count/readiness，不能由摘要文件、索引或 GUI projection 伪造。accept 写入 `extensions/ad_hoc/processed` 或 `rollout_summaries/processed`，review 写入 `extensions/ad_hoc/review` 并保留 durable review 状态；lease heartbeat 丢失时拒绝提交。此链路保留 Lime 的多模型、多协议 route，但 route/capability/readiness 只能来自当前 provider 控制面，不能把 grok-build 的 catalog 当作 Codex Memory runtime。
+Memory 的 phase-2 业务 owner 是 `App Server -> RuntimeCore -> LocalMemoryBackend -> 同一 RuntimeCore 的内部 Agent -> memory_state.sqlite`。LocalMemoryBackend 负责 claim/heartbeat、不可变提取快照、workspace diff、artifact 校验、baseline 与精确版本选择；RuntimeCore 负责同一会话 actor、回合、工具循环和关闭。phase-2 不再使用 JSON proposal，也不移动、归档或人工 review 来源。v2 要求合法的 `memory_summary.md`，不强制 v1 的 `MEMORY.md`。`memory/status` 继续只读取状态表的 consolidation count/readiness，不能由摘要文件、索引或 GUI projection 伪造。多模型、多协议 route/capability/readiness 由当前 provider 控制面承接，不能把 grok-build 的 catalog 当作 Codex Memory runtime。
 
-当前 phase-2 的 `MemoryStageTwoProvider::sample` 仍复用 `run_direct_text_generation_with_db`，尚未像 Codex `memories/write/src/phase2.rs` 启动受限 consolidation agent。它不能证明 MemoryConsolidation typed Stop target 已接入生产 Memory 调度；此链路属于未完成的 M01 harness 对齐，下一片必须复用既有共享 Agent runtime，并保留 Lime 多模型 route/capability 边界。
+phase-1 保留结构化直接提取；phase-2 已替换为可信 typed capability 的 ephemeral 内部 Agent。terminal → shutdown → artifacts → ownership heartbeat → baseline → exact snapshot commit 的次序以文末架构图为准；关闭失败保留租约。当前实现正在验证，不能据此核销 M01、平台矩阵或全量产品验收。
 
 共享 ephemeral 会话由原 `RuntimeCore.state` / session actor 承接，不能克隆一个移除 writer 的 Core 冒充隔离。`start_session` 跳过 canonical 创建，`event_store::append_runtime_events_to_stored_session` 在真实会话标记上统一关闭 EventLog、trace、projection、checkpoint、artifact/media sidecar 和 output snapshot 写入；canonical store 的创建/修复入口也拒绝为该会话建立持久历史。CodeCell 独立 trace 和 workflow cancel/resume audit 同样受会话策略约束。输入媒体在 start/steer/queue 与 provider history 重建时保留经校验的内存数据；模型切换仍经现有 metadata actor 和 route preflight，ephemeral 只跳过持久提交。ModelHistoryRecorder 保留原 event identity/order，`HistoryReceipt::in_memory` 明确不承诺落盘，普通会话仍要求真实 EventLog owner。
 
@@ -5860,7 +5895,7 @@ command/exec typed SandboxPolicy -> existing permission profile admission
 existing Turn string configuration -> boundary conversion -> same LocalExecutionSandbox
 ```
 
-`sandbox/policy.rs` 统一解析 cwd、显式绝对写根与未被排除的 TMPDIR / Unix `/tmp`；readOnly 没有隐式临时写根。网络配置继续由该 runner 与实际 permission grants 执行，模型采样网络仍归 model-provider。`command/exec` 的任意 JSON/string policy 与丢字段的 label helper 已替换，schema/client 同步生成；不增加第二 sandbox 或 runtime。Windows 同步 typed roots 与 TEMP/TMP 排除，但不因此宣称 Windows 运行验收。root 于 2026-10-20 确认上述 owner、数据流与依赖方向；此片只闭合共享执行前提，受限 Memory Agent 的 typed admission、扩展隔离、workspace 与关闭提交仍未接入。
+`sandbox/policy.rs` 统一解析 cwd、显式绝对写根与未被排除的 TMPDIR / Unix `/tmp`；readOnly 没有隐式临时写根。网络配置继续由该 runner 与实际 permission grants 执行，模型采样网络仍归 model-provider。`command/exec` 的任意 JSON/string policy 与丢字段的 label helper 已替换，schema/client 同步生成；不增加第二 sandbox 或 runtime。Windows 同步 typed roots 与 TEMP/TMP 排除，但不因此宣称 Windows 运行验收。root 于 2026-10-20 确认上述 owner、数据流与依赖方向；该片证据只闭合共享执行前提；受限 Memory Agent 的 current 接线见下方共享内部 Agent 图，行为验收独立记录。
 
 架构图确认：root，2026-10-20；对照 Codex `core/src/session/session.rs` 与 App Server `load_live_thread_view`，唯一 runtime、provider、工具和存储 owner 不变。此为受限 Memory Agent 的存储前提，尚不证明 phase-2 Agent、工具隔离或 Memory workspace 对齐；验证终态记录到 Memory harness 执行计划。
 
@@ -5929,3 +5964,153 @@ CodeMirror Compartment -> localized phrases/contentAttributes (same EditorView/h
 没有新增runtime/store/protocol；停止全部复用现有authority，不把关闭输出标签当终止进程。旧Coding面板的新增打开按钮及回调已退出；列表只读canonical已加载turn，最后running turn中的命令留在时间线。参考interruptedItemIds的独立排除与session buffer fallback仍为缺口。宽度按REA的defaultWidth600分支与unified320下限替换旧固定680聊天规则，既有手动resize/焦点/compact owner继续唯一。候选23文件保存边界已取得真实Electron证据；后继尺寸与Summary进程生命周期独立验收。
 
 后台opener身份后继（root，2026-10-19）：Summary传递canonical完整item；Coordinator按thread/turn/item匹配当前投影，拒绝未加载/跨线程目标后委托localState。已删除itemId-only与processId前置门槛，不接受影子输出。ExecutionProcessServer公开后台列表时使用既有canonical ItemId构造，工具执行仍持原call ID；不让renderer猜前缀。单个终止/停止全部必须保留既有exit watcher，待supervisor最终输出进入同一Command Item后由watcher移除session；提前forget的helper/export与冗余registration wrapper直接删除。后台列表按最近turn优先，关闭输出不终止任务。runtime26/27失败原件证明身份及终态缺口，后继28/29按真实进程收据结算；架构方向由root确认，业务owner不变。
+
+
+Memory phase-2 共享内部 Agent（2026-10-20，实施中）：
+
+```text
+RuntimeCore memory startup / memoryStore/consolidate
+  -> LocalMemoryBackend (claim + heartbeat + immutable extraction snapshots + workspace diff)
+  -> MemoryAgent implemented by the SAME RuntimeCore
+  -> same ephemeral StoredSession / session actor / start_turn / RuntimeBackend / model-provider
+  -> trusted InternalAgentPolicy (not deserializable from metadata)
+  -> same per-step tool snapshot AND executor
+     -> native patch filesystem helper -> existing LocalExecutionProcess OS sandbox
+     -> shell command -> existing ExecutionProcessServer -> same typed OS sandbox
+  -> true terminal -> shared shutdown owner (10s)
+  -> artifact validation -> ownership heartbeat -> fresh workspace baseline -> exact source selection/watermark
+```
+
+责任开发者 root 确认上述 owner、数据流与依赖方向。LocalMemoryBackend 继续持有 root、租约、来源与 baseline；RuntimeCore 继续持有唯一会话/回合/关闭 owner，model-provider 继续持有多模型、多协议网络边界。Memory 使用单一内存会话与原工具 continuation；MCP、Apps、插件和递归 Agent 不进入其快照或执行器，本地 Skills、AGENTS 与全局 hooks 保留。插件 hooks 单独关闭；Memory Stop block/abort 沿既有明确失败语义处理。父 Disabled/External 原样保留，managed 仅 Memory root 可写且禁网/排除临时写根。原生文件 helper 的 owned task 复用现有 OS process supervisor；会话 actor 停止后，同一 shutdown owner 取消并等待 helper drain，防止 100ms task abort 留下写者。进程 wait 可在取消后重新等待实际退出。shutdown 未完成时保留租约至过期。phase-2 direct sampling、strict JSON proposal 与相应解析器已删除，无兼容/fallback。该图是实现确认，验证及未闭合义务记入 Memory harness 执行计划，尚未标记完成。
+
+
+Memory phase-1 单次采样（2026-10-21，root 架构确认）：
+
+```text
+LocalMemoryBackend immutable extraction + strict schema
+  -> RuntimeBackend MemoryStageOneProvider
+  -> direct_text_generation (one request, no tools/hooks/Agent loop)
+  -> existing configured model-provider client (route/readiness/credential/protocol)
+  -> canonical Finish(Stop, no follow-up) -> extraction parse + exact ownership save
+```
+
+此路径复用 agent-runtime 的 generation controls 与既有 model policy；phase-2 继续使用上图同一 RuntimeCore 的完整受限 Agent。阶段差异由调用者和 request contract 表达，不使用可伪造 metadata 关闭工具，也不新增业务 runtime/provider。采样只采用当前请求 usage；工具事件、错误、截断和缺失 Finish 均失败，不把部分文本或旧会话统计当结果。macOS native filesystem helper 的 sidecar 在链接时内建 sibling dylib rpath，使用原 OS runner 和打包布局；不放宽 Seatbelt、也不依赖其已清除的 DYLD 环境。验证状态见 Memory harness 执行计划。
+
+### 32.3 同 Turn compaction durable receipt（2026-10-21）
+
+```text
+provider loop / tool continuation
+  -> model-provider summary request
+  -> RuntimeCore::commit_same_turn_compaction
+     -> one RuntimeCore state lock
+     -> replacement artifact + coveredThroughSequence
+     -> EventLog / projection / in-memory canonical history append
+     -> durable context.compaction.completed event_id
+  <- RuntimeMidTurnCompactionResult { messages, context_epoch, durable_event_id }
+  -> provider loop advances epoch and uses replacement suffix
+  -> App Server mapper emit_preappended_by_id(event_id)
+     -> current CLI/TUI/GUI sink publishes the already committed canonical event
+```
+
+同 Turn replacement 的 boundary、artifact、EventLog 与 projection 仍由 App Server 唯一 owner 持有；provider loop 只消费 provider-neutral replacement 和 receipt，不创建第二个事件或 store。`durable_event_id` 经过当前 `RuntimeEventSink::emit_preappended_by_id` 发布，避免把同一 compaction marker 再追加一次；缺少 receipt 的测试能力只能发 transient signal，不能伪造 durable history。`context_epoch` 只有在 durable commit 成功后推进，后续 tool/Hook snapshot 读取新 epoch。架构影响：major；责任 root，2026-10-21。Codex 对照为 `core/src/session/turn.rs` 与 `core/src/compact.rs`，REA 仅作为 Desktop 静态行为证据；完整四协议、cold/fork、Pre/PostCompact 输入、Memory、插件和 LimeCore 验收仍按执行计划独立结算。
+
+### 32.4 多模型 native history 边界（2026-10-21）
+
+```text
+canonical Thread/Turn/Item + provider.model_history
+  -> current route fingerprint(provider, model, endpoint, protocol, credential, api version)
+  -> same fingerprint: preserve native Responses item / encrypted content / continuation state
+  -> changed model or route: portable lowering only
+       -> assistant text/summary + ordinary tool history
+       -> drop response id, encrypted content, producer and opaque continuation state
+  -> selected model provider request
+```
+
+`history_producer` 复用 provider health 的完整 route identity，并把 model 作为 opaque-state 兼容边界。模型切换仍保留 canonical history 和可迁移内容，由当前 `model-provider` 负责 lowering；不会在 App Server 或 GUI 建第二份会话历史，也不会把 grok-build 的 route catalog 当作 Codex Loop 语义。多模型预算、capability、readiness 与 retry 继续由 provider 控制面提供，Context/Memory/Agent Loop 的 owner 不变。架构影响：major；责任 root，2026-10-21。Codex 对照为 `core/src/session/turn.rs`、`core/src/compact.rs` 和 provider session history；REA 仅用于 Desktop 打包行为证据。
+
+### 32.5 Hook MCP 执行边界（2026-10-21）
+
+```text
+immutable HookSnapshot (event + handler + MCP target/input)
+  -> agent-runtime Hook lifecycle admission
+  -> tool-runtime CommandHookReporter
+       -> command handler: existing OS process runner
+       -> mcp_tool handler: McpHookExecutor callback
+  -> current AgentRuntimeState::call_mcp_tool(session, thread, server, tool)
+  -> same thread-scoped MCP runtime / canonical tool result
+  -> Codex-compatible output parser -> Allow / Block / Rewrite / Abort / Context
+  -> HookStarted/HookCompleted + same Turn projection
+```
+
+Hook discovery、snapshot、生命周期和 MCP 调用保持单一 owner；`tool-runtime` 不持有 MCP registry，只依赖窄 `McpHookExecutor` 接口，`lime-agent` 通过已有 `AgentRuntimeState` 注入 thread-scoped runtime。MCP hook 的参数模板从同一事件 JSON 展开，超时和错误 fail closed；App Server/GUI/CLI/TUI 继续消费同一 Hook lifecycle。该架构影响为 major，责任 root，2026-10-21；Codex 事实源为 `hooks/src/engine/mcp_runner.rs`、`dispatcher.rs` 和 `app-server-protocol/src/protocol/v2/plugin.rs`。Prompt/Agent handler 仍明确拒绝，未建立第二套执行后端。
+
+### 32.6 Hook Interrupt 取消边界（2026-10-21）
+
+```text
+turn/interrupt / session actor cancel
+  -> RuntimeSessionActor::stop_active_task
+  -> RuntimeSessionTask::interrupt (explicit interrupt only)
+  -> ExecutionBackend::run_interrupt_hooks
+  -> RuntimeBackend route/session/plugin/MCP owner
+  -> lime-agent::run_interrupt_hooks
+  -> tool-runtime discovery + immutable HookSnapshot
+  -> CommandHookReporter (command 或 McpTool)
+  -> AgentEvent HookStarted/HookCompleted
+  -> ChannelRuntimeEventSink
+  -> RuntimeCore canonical hook.started/hook.completed projection
+```
+
+Interrupt 只在 Root typed session target 运行；ThreadSpawn、SyntheticSubagent 与
+MemoryConsolidation 沿既有 `RuntimeStopHookTarget` 排除。输入/输出遵循 Codex `Interrupt`
+合同，取消后不进行新的 provider sampling；Hook lifecycle 仍走同一 App Server/Thread/Turn
+投影。`ExecutionBackend` 只提供窄的 Interrupt hook operation，MCP registry 仍由
+`AgentRuntimeState` 持有，未新增 runtime、store、RPC 或兼容层。架构影响为 major，责任
+root，2026-10-21；Codex 事实源为 `core/src/hook_runtime.rs`、`hooks/src/events/interrupt.rs`
+和 `hooks/src/engine/output_parser.rs`。真实 transcript flush、stdio/PTY/Electron Gate B
+与 packaged/Windows evidence 尚未关闭，不能将本图视为完整产品验收。
+
+
+## Portable rollout 的模型上下文（2026-10-21）
+
+current owner 仍是 App Server `canonical_rollout` / canonical ThreadStore；schema 3 的同一
+history batch 持有 Thread/Turn/Item changes 与原始 runtime records。模型 receipt 的 producer、
+压缩 checkpoint 的 replacement/window lineage、usage 和 surviving suffix 不再依赖界面 Item
+逆推或源 EventLog。必要的输入图片只在待写快照中内联；live projection 保留其 sidecar owner。
+旧 Lime rollout schema 1/2 直接拒绝，不提供迁移、双读或旧顺序摘要分支。
+
+```text
+RuntimeCore events + canonical changes + verified input media
+  -> canonical ThreadStore history transaction
+  -> portable history batch (changes + runtime records, one digest/JSONL record)
+  -> rollout fsync -> SQLite commit -> runtime ACK / notifications
+
+selected plain/zstd rollout -> identity/digest/sequence validation
+  -> canonical history + original model receipts/checkpoints/usage
+  -> thread/fork or cold thread/resume -> same RuntimeCore/provider-history owner
+  -> model-provider route identity check -> protocol lowering -> provider
+```
+
+EventLog 仍承接既有诊断/未 ACK 尾部恢复；已提交 rollout 是文件恢复的事实源。
+显式旧文件提供其自身历史，索引只覆盖当前模型设置；不混入更新的内存/EventLog 历史。
+durable fork 将 canonical seed、模型记录、session-only checkpoint 和 usage 一并写回同一
+rollout，冷恢复和嵌套 fork 复用同一路径。原生 opaque 数据仍由既有完整 route identity
+（provider/model/endpoint/protocol/API version/credential scope）控制适用范围。
+
+结构：rollout 的 scan、history、media、digest 分模块；ThreadStore 的 history、rollout rebuild
+和 repair 分模块；fork 的 seed/merge 移入 history。没有新增业务后端、存储或 public method。
+责任开发者 root 于 2026-10-21 确认该数据流、目录 owner、依赖和 ACK 边界；测试终态与开放
+义务以 `internal/exec-plans/codex-rollout-context-alignment.md` 为准，不据此声明全 Codex 完成。
+
+签名内容也经过同一完成项链：`model-provider` 解析 Anthropic thinking/signature delta、
+Gemini thought/text 签名后，发布携带原始内容块的 `ResponseItemDone`；
+`agent-runtime` 使用既有 completed-item receipt 保存到同一 rollout。
+GUI Item 只接收可展示内容。provider request 副本先校验完整 producer route，
+同路由 lower 原始块；跨路由 lower 可移植文本/思考并清除 opaque 签名，持久化原件不变。
+该逻辑只属于 provider 网络边界，没有新增 protocol method、runtime 或存储 owner。
+
+压缩历史的物理文件也由同一 `canonical_rollout/compression` 管理。active/archived 发现
+将 `.jsonl.zst` 归一为 plain 逻辑路径并去重；read/rebuild 流式校验，不生成 plain 文件。
+history/metadata 写入与生命周期移动前先解压至同目录临时文件，校验摘要、序列和 identity，
+保留权限及 mtime，fsync 后无覆盖发布，再删除压缩源。plain sibling 优先；移动和删除同时
+清掉隐藏压缩副本，防止新索引重建复活旧线程。ThreadStore、provider route 与公共 JSON-RPC
+边界不变。root 于 2026-10-21 确认此 owner/dataflow；通过情况继续以 rollout 执行计划为准。

@@ -35,9 +35,11 @@ hook_enum!(HookEventName {
     SubagentStart,
     SubagentStop,
     Stop,
+    Interrupt,
 });
 hook_enum!(HookHandlerType {
     Command,
+    McpTool,
     Prompt,
     Agent,
 });
@@ -106,15 +108,30 @@ pub struct HooksListEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "handlerType", rename_all = "camelCase")]
+pub enum HookHandlerMetadata {
+    Command {
+        command: String,
+        #[serde(default)]
+        #[serde(rename = "async")]
+        r#async: bool,
+    },
+    McpTool {
+        server: String,
+        tool: String,
+    },
+    Prompt {},
+    Agent {},
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct HookMetadata {
     pub key: String,
     pub event_name: HookEventName,
-    pub handler_type: HookHandlerType,
-    #[serde(default)]
-    pub execution_mode: HookExecutionMode,
+    #[serde(flatten)]
+    pub handler: HookHandlerMetadata,
     pub matcher: Option<String>,
-    pub command: Option<String>,
     pub timeout_sec: u64,
     pub status_message: Option<String>,
     pub additional_context_limit: Option<usize>,
@@ -133,10 +150,19 @@ impl From<&core::HookSnapshot> for HookMetadata {
         Self {
             key: value.key.clone(),
             event_name: value.event_name.into(),
-            handler_type: value.handler_type.into(),
-            execution_mode: value.execution_mode.into(),
+            handler: match value.handler_type {
+                core::HookHandlerType::Command => HookHandlerMetadata::Command {
+                    command: value.command.clone().unwrap_or_default(),
+                    r#async: value.execution_mode == core::HookExecutionMode::Async,
+                },
+                core::HookHandlerType::McpTool => HookHandlerMetadata::McpTool {
+                    server: value.mcp_server.clone().unwrap_or_default(),
+                    tool: value.mcp_tool.clone().unwrap_or_default(),
+                },
+                core::HookHandlerType::Prompt => HookHandlerMetadata::Prompt {},
+                core::HookHandlerType::Agent => HookHandlerMetadata::Agent {},
+            },
             matcher: value.matcher.clone(),
-            command: value.command.clone(),
             timeout_sec: value.timeout_sec,
             status_message: value.status_message.clone(),
             additional_context_limit: value.additional_context_limit,
@@ -252,6 +278,83 @@ mod tests {
         assert_eq!(
             serde_json::to_value(HookTrustStatus::Modified).expect("trust wire"),
             json!("modified")
+        );
+    }
+
+    #[test]
+    fn hook_handler_metadata_matches_codex_flattened_union() {
+        assert_eq!(
+            serde_json::to_value(HookHandlerMetadata::Command {
+                command: "echo hello".to_string(),
+                r#async: true,
+            })
+            .expect("command handler wire"),
+            json!({
+                "handlerType": "command",
+                "command": "echo hello",
+                "async": true,
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(HookHandlerMetadata::McpTool {
+                server: "security".to_string(),
+                tool: "scan".to_string(),
+            })
+            .expect("mcp handler wire"),
+            json!({
+                "handlerType": "mcpTool",
+                "server": "security",
+                "tool": "scan",
+            })
+        );
+    }
+
+    #[test]
+    fn hook_metadata_flattens_mcp_target_from_runtime_snapshot() {
+        let snapshot = core::HookSnapshot {
+            key: "project:pre_tool_use:0:0".to_string(),
+            event_name: core::HookEventName::PreToolUse,
+            handler_type: core::HookHandlerType::McpTool,
+            execution_mode: core::HookExecutionMode::Sync,
+            matcher: Some("Bash".to_string()),
+            command: None,
+            mcp_server: Some("security".to_string()),
+            mcp_tool: Some("scan".to_string()),
+            mcp_input: Some(json!({"severity": "high"})),
+            timeout_sec: 10,
+            status_message: None,
+            additional_context_limit: None,
+            source_path: PathBuf::from("/tmp/hooks.json"),
+            source: core::HookSource::Project,
+            plugin_id: None,
+            display_order: 0,
+            enabled: true,
+            is_managed: false,
+            current_hash: "sha256:test".to_string(),
+            trust_status: core::HookTrustStatus::Trusted,
+        };
+        let value = serde_json::to_value(HookMetadata::from(&snapshot)).expect("metadata wire");
+        assert_eq!(
+            value,
+            json!({
+                "key": "project:pre_tool_use:0:0",
+                "eventName": "preToolUse",
+                "handlerType": "mcpTool",
+                "server": "security",
+                "tool": "scan",
+                "matcher": "Bash",
+                "timeoutSec": 10,
+                "statusMessage": null,
+                "additionalContextLimit": null,
+                "sourcePath": "/tmp/hooks.json",
+                "source": "project",
+                "pluginId": null,
+                "displayOrder": 0,
+                "enabled": true,
+                "isManaged": false,
+                "currentHash": "sha256:test",
+                "trustStatus": "trusted"
+            })
         );
     }
 }

@@ -10,7 +10,9 @@ import {
 } from "react";
 import { FileDiff, Files, Globe, SquareTerminal } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { readProjectGitStatus } from "@/lib/api/projectGit";
+import { requestWorkspaceRightSurface } from "@/lib/api/workspaceRightSurface";
 import { ThreadSidePanelLauncher } from "./right-surface/ThreadSidePanelLauncher";
 import { FileTabLifecycleProvider } from "./text-file-editor/FileTabLifecycle";
 import { FileTabDraftContext } from "./text-file-editor/fileTabDraftContext";
@@ -32,6 +34,7 @@ type RightSurfaceHostRuntimeProjection = Pick<
   | "activePluginSurfaceContainerId"
   | "browserRightSurfaceAvailable"
   | "browserRightSurfaceIntent"
+  | "handleBrowserLaunchApplied"
   | "filesRightSurfaceAvailable"
   | "filesRightSurfaceTarget"
   | "handleClosePluginSurface"
@@ -44,6 +47,7 @@ type RightSurfaceHostRuntimeProjection = Pick<
   | "getFileDraft"
   | "setFileDraft"
   | "openWorkspaceFile"
+  | "outputs"
   | "pinSidePanelTab"
   | "backgroundTerminalItems"
   | "rightSurfaceLaunchers"
@@ -64,6 +68,8 @@ interface UseWorkspaceRightSurfaceHostRuntimeParams extends Omit<
   | "idPrefix"
   | "sidePanelTabs"
   | "sidePanelActions"
+  | "outputs"
+  | "onOpenWebsite"
   | "onNewSidePanelTab"
   | "onSelectSidePanelTab"
   | "onCloseSidePanelTab"
@@ -75,6 +81,8 @@ interface UseWorkspaceRightSurfaceHostRuntimeParams extends Omit<
   | "activePluginSurfaceContainerId"
   | "browserRightSurfaceAvailable"
   | "browserRightSurfaceInitialUrl"
+  | "browserRightSurfaceLaunchRequestId"
+  | "onBrowserLaunchApplied"
   | "browserRightSurfaceIntentTitle"
   | "browserRightSurfaceHistoricalProjection"
   | "filesRightSurfaceAvailable"
@@ -228,6 +236,29 @@ export function useWorkspaceRightSurfaceHostRuntime({
     sidePanelTabs: rightSurfaceRuntime.sidePanelTabs,
     backgroundTerminalItems: rightSurfaceRuntime.backgroundTerminalItems,
     sidePanelActions,
+    outputs: rightSurfaceRuntime.outputs,
+    onOpenWebsite: (url) => {
+      void requestWorkspaceRightSurface({
+        surfaceKind: "browser",
+        origin: "user",
+        priority: "foreground",
+        reason: "open_thread_output",
+        sessionId:
+          hostRuntimeParams.sceneSessionId ??
+          hostRuntimeParams.sceneThreadId ??
+          null,
+        workspaceId: hostRuntimeParams.runtimeWorkspaceId ?? null,
+        workspaceRoot: root,
+        candidateId: url,
+        metadata: { browser: { launchUrl: url } },
+      }).catch((error: unknown) => {
+        toast.error(
+          t("agentChat.browserWorkspace.loadFailedBody", {
+            message: error instanceof Error ? error.message : String(error),
+          }),
+        );
+      });
+    },
     onNewSidePanelTab: rightSurfaceRuntime.handleNewSidePanelTab,
     onSelectSidePanelTab: rightSurfaceRuntime.handleSelectSidePanelTab,
     onCloseSidePanelTab: fileTabLifecycle.requestClose,
@@ -244,6 +275,13 @@ export function useWorkspaceRightSurfaceHostRuntime({
       rightSurfaceRuntime.browserRightSurfaceAvailable,
     browserRightSurfaceInitialUrl:
       rightSurfaceRuntime.browserRightSurfaceIntent?.launchUrl ?? null,
+    browserRightSurfaceLaunchRequestId:
+      rightSurfaceRuntime.browserRightSurfaceIntent?.launchApplied ||
+      !rightSurfaceRuntime.browserRightSurfaceIntent?.launchUrl
+        ? null
+        : (rightSurfaceRuntime.browserRightSurfaceIntent?.sourceRequestId ??
+          null),
+    onBrowserLaunchApplied: rightSurfaceRuntime.handleBrowserLaunchApplied,
     browserRightSurfaceIntentTitle:
       rightSurfaceRuntime.browserRightSurfaceIntent?.title ?? null,
     browserRightSurfaceHistoricalProjection:

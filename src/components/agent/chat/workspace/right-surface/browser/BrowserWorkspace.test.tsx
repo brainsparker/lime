@@ -177,6 +177,52 @@ describe("BrowserWorkspace", () => {
     container.remove();
   });
 
+  it("applies a new launch request to a restored native tab and ignores an older navigation result", async () => {
+    const onLaunchApplied = vi.fn();
+    const tab = browserState();
+    mocks.list.mockResolvedValue([tab]);
+    mocks.setBounds.mockResolvedValue(tab);
+    const old = deferred<BrowserTabState>();
+    mocks.navigate
+      .mockReturnValueOnce(old.promise)
+      .mockImplementation(async (tabId, url) => browserState({ tabId, url }));
+    const render = async (launchRequestId: string, initialUrl: string) =>
+      act(async () => {
+        root.render(
+          <BrowserWorkspace
+            runtimeSessionId="session-1"
+            threadId="thread-1"
+            launchRequestId={launchRequestId}
+            initialUrl={initialUrl}
+            onLaunchApplied={onLaunchApplied}
+          />,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    await render("request-a", "http://localhost:4317/first");
+    expect(mocks.navigate).toHaveBeenCalledWith(
+      tab.tabId,
+      "http://localhost:4317/first",
+    );
+    await render("request-b", "http://localhost:4317/second");
+    expect(mocks.navigate).toHaveBeenCalledWith(
+      tab.tabId,
+      "http://localhost:4317/second",
+    );
+    await act(async () =>
+      old.resolve(browserState({ url: "http://localhost:4317/first" })),
+    );
+    expect(
+      container.querySelector<HTMLInputElement>(
+        'input[data-testid="browser-workspace-address"]',
+      )?.value,
+    ).toBe("http://localhost:4317/second");
+    await render("request-b", "http://localhost:4317/second");
+    expect(mocks.navigate).toHaveBeenCalledTimes(2);
+    expect(onLaunchApplied).toHaveBeenCalledExactlyOnceWith("request-b");
+    expect(mocks.mount).not.toHaveBeenCalled();
+  });
+
   it("restores two native tabs, selected view and URL after the Browser pane remounts", async () => {
     const second = browserState({
       tabId: "second",

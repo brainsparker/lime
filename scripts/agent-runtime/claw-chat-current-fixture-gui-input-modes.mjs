@@ -46,9 +46,9 @@ export async function selectComposerSkillFromGui(
 async function enableContextCommandFromGui(
   page,
   options,
-  { label, suggestionKey, statusTestId },
+  { label, suggestionKey, statusTestId, inputConstraints = {} },
 ) {
-  await waitForInputReady(page, options);
+  await waitForInputReady(page, options, inputConstraints);
   const editor = page
     .locator('[data-testid="composer-editor"][role="textbox"]')
     .first();
@@ -89,10 +89,17 @@ export async function enablePlanModeFromGui(page, options) {
   });
 }
 
-export async function enableGoalModeFromGui(page, options) {
+export async function enableGoalModeFromGui(
+  page,
+  options,
+  inputConstraints = {},
+) {
   return await enableContextCommandFromGui(page, options, {
     label: "追求目标",
     suggestionKey: "command:goal",
-    statusTestId: "inputbar-objective-status",
+    statusTestId: inputConstraints.allowTaskCenterHomeInput
+      ? "empty-state-objective-status"
+      : "inputbar-objective-status",
+    inputConstraints,
   });
 }

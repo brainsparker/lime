@@ -1,6 +1,6 @@
 # 异步问题 current 纵切
 
-状态：实施中；组合 r41 的异步生产/展示/跨线程题稿/普通回复已通过，同步后续 Turn 完成展示仍失败；等待状态提前排除活动 Turn 的修复已通过定向回归，正在重建和复验。负责人：Codex，2026-10-20。
+状态：active / partial。组合 r60 已取得限定真实 Electron 通过；r51 Main 超时与 r56/r58 sidecar code1 的间歇性失败根因仍 open。r70 聚合 22 场景通过；r71 默认门禁已整轮 exit0，前端 142/142 批、Rust 6340 项和标准 GUI 24/24 通过。后继日志清退的新字节独立验证，不继承为本问答专项新收据。负责人：Codex，2026-10-20。
 
 目标：对齐 `request_user_input_async -> AgentMessage.questions -> 同一发送协调器`，不新增问答 RPC、同步 pending 或业务历史 store。参考与限制见 `internal/research/codex-desktop-rea/async-user-input-audit-20261020.md`。
 
@@ -205,3 +205,15 @@ r48的root刷新入口最终在原20分钟锁等待上限exit1，未取得锁、
 r48前端第79批最终2项失败；两项r49独立原期限复验通过。r50同批最终14文件132项通过、2文件4项触发原5000ms timeout，整个续跑exit1。没有修改PPTX实现、期限或断言；原失败与独立通过分账，默认门禁仍未通过。
 
 共享构建结束后只读预检三段fresh；新组合问答`codex-question-20261020-r51`真实完成全部async/sync问答、普通回复、跨线程稿、精确Escape、provider/wire、正文/Stop和零状态toast检查；全部六类错误计数0，`sourceAndArtifactIdentityStable=true`。但是正常Main退出触发原15秒上限，`normalMainExit=null`、失败后`forcedCleanup.signal=SIGKILL`，整轮exit1；预算未放宽，不继承r46的正常退出观察。原summary与三图保存在`.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r51/`，日志`/tmp/lime-question-combined-electron-r51.log`。后继先定位退出等待、验证侧栏和当前Thread工作流；GUI主计划已记录旧Workbench fixture的直接迁移写集。
+
+## r55–r60 Main诊断与组合复验
+
+fixture追加只读Main生命周期观察，记录before-quit/will-quit/quit、defaultPrevented及活动资源，不调用quit、不改变退出预算。r55首版诊断在Main evaluate使用不可用require而准备失败，原件保留；已改为process.stdout。r56和r58均在首次异步问题前sidecar code1退出并重连，canonical Turn恢复为interrupted，整轮fail；Main分别0.404/0.709秒正常code0/signalnull，forcedCleanup=null。r58现有host diagnostics读取时已经generation2且last_failure=null，原行级过滤未保留多行stderr，因此退出根因仍unknown，不能写成已修复。后继保留匹配诊断的完整有界chunk及既有脱敏host diagnostics，不新增生产API或忽略错误。
+
+`codex-question-20261020-r60`真实组合整轮pass：异步生产/非阻塞完成/普通答案、同步选项与自由文本/跨线程题稿、provider/wire、终态正文/Stop、精确Escape及主稿保留均通过。六类错误计数全0，前后三段fresh、源/产物identity稳定；Main0.313秒正常code0/signalnull、forcedCleanup=null。Main事件为首轮will-quit被既有异步drain阻止，drain后第二轮quit正常完成；没有sidecar异常输出。原日志`/tmp/lime-question-combined-electron-r60.log`、summary及三图位于`.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r60/`。同摘要当前限定Gate B通过不抵消r51退出超时或r56/r58的间歇性sidecar失败；根因、完整平台矩阵和生产catalog仍开放。
+
+r58 fixture/聚合守卫/wire三套33项及scoped lint通过；r57脚本治理通过。后继编程工作流真实发现同起始时间按不透明Turn ID重排的问题，GUI主计划记录窄修、确定性红回归和新Renderer验证合同；本问答收据不证明该新字节已通过。
+
+后继编程r64已在新排序字节通过真实两回合、独立命令输出、四类diff和native Browser生命周期；问答r60仍按自己的旧字节边界保留。目标r65/r66迁移旧fixture后，r67实际暴露共享ConfirmDialog没有accessible name；r68补唯一标题/说明关联、五语言目标替换红绿与63项回归，新标准GUI及r69真实Goal全通过。该a11y修复不解释r51 Main超时或r56/r58 sidecar code1；二者继续open。r70的终态见下段，默认门禁独立结算，见GUI主计划及同目录不可变manifest。
+
+r70聚合current fixture已整轮exit0，22个真实Electron场景全部ok，源码/三段产物identity稳定，逐场景normal Main exit均code0/signalnull；68份产物及汇总归档在同目录`current-fixture-r70/`。它不包含组合问答专项，不能消除上述间歇性问答sidecar/Main缺口。r71默认门禁已整轮exit0：独立前端状态自然结束142/142批passed，21个Rust crate共6340 passed/0 failed/5 ignored，标准GUI24/24；日志和状态已不可变归档。该planner没有选择contracts，不冒称本轮执行。r73后继日志清退另由[专项计划](codex-workbench-log-removal-20261020.md)验证，不重写原失败或扩大问答证据。

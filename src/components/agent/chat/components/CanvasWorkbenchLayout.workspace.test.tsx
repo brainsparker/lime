@@ -81,12 +81,6 @@ describe("CanvasWorkbenchLayout workspace tabs", () => {
       onOpenPath: vi.fn(async () => undefined),
       onRevealPath: vi.fn(async () => undefined),
       workspaceView: {
-        eyebrow: "Runtime Workspace",
-        tabLabel: "项目文件",
-        tabBadge: "已连接",
-        tabBadgeTone: "sky",
-        title: "工作区文件",
-        subtitle: "运行时已经为 workspace 汇总了目录语义。",
         panelCopy: {
           emptyText: "工作区空态来自运行时。",
           unavailableText: "工作区不可用提示来自运行时。",
@@ -94,22 +88,6 @@ describe("CanvasWorkbenchLayout workspace tabs", () => {
           loadingText: "目录加载文案来自运行时。",
           emptyDirectoryText: "目录空态来自运行时。",
         },
-        badges: [
-          {
-            key: "workspace-runtime",
-            label: "已连接",
-            tone: "accent",
-          },
-        ],
-        summaryStats: [
-          {
-            key: "workspace-runtime-stat",
-            label: "目录状态",
-            value: "运行时注入",
-            detail: "workspace 头部信息不再由布局壳推断。",
-            tone: "success",
-          },
-        ],
       },
     });
 

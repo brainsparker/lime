@@ -29,10 +29,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-mod managed_model_fetch_access;
-mod runtime_metadata;
 #[cfg(test)]
 mod agnes_tests;
+mod managed_model_fetch_access;
+mod runtime_metadata;
 #[cfg(test)]
 mod truncation_tests;
 pub use runtime_metadata::{

@@ -86,6 +86,21 @@ impl RuntimeCoreEventAppender {
             .sessions
             .get_mut(session_id)
             .ok_or_else(|| RuntimeCoreError::SessionNotFound(session_id.to_string()))?;
+        self.append_external_runtime_events_locked(stored, session_id, turn_id, runtime_events)
+    }
+
+    /// Append while the caller already owns the RuntimeCore state lock.
+    ///
+    /// Same-turn compaction uses this path so its replacement boundary is derived from and
+    /// committed against one immutable event sequence. This closes the read/unlock/relock gap
+    /// that could admit a steer or tool event between the compaction snapshot and its durable ACK.
+    pub(in crate::runtime) fn append_external_runtime_events_locked(
+        &self,
+        stored: &mut StoredSession,
+        session_id: &str,
+        turn_id: Option<&str>,
+        runtime_events: Vec<RuntimeEvent>,
+    ) -> Result<Vec<AgentEvent>, RuntimeCoreError> {
         if let Some(turn_id) = turn_id {
             if !stored.turns.iter().any(|turn| turn.turn_id == turn_id) {
                 return Err(RuntimeCoreError::TurnNotActive(turn_id.to_string()));

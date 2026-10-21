@@ -15,6 +15,7 @@ import {
   collectFileEditorEvidence,
   collectMarkdownSaveBeforePreview,
 } from "./thread-side-panel-file-editor-scenario.mjs";
+import { collectFileTreeSelectionEvidence } from "./file-tree-selection-scenario.mjs";
 
 /** 真实目录选择、捕获事件与编辑器身份；不注入标签状态。 */
 async function collectFilePreviewEvidence(
@@ -172,6 +173,7 @@ export async function collectThreadSidePanelNewTabEvidence(
   options,
   workspace,
   file,
+  clipboard,
 ) {
   const waitSurface = (kind) =>
     page.waitForFunction(
@@ -242,6 +244,7 @@ export async function collectThreadSidePanelNewTabEvidence(
   await capture("file-search-shared-tree");
   const treeContextMenu = await verifyFileTreeContextMenu({
     page,
+    clipboard,
     directory: directoryRow,
     file: nestedRow,
     cwd: workspace.rootPath,
@@ -285,6 +288,7 @@ export async function collectThreadSidePanelNewTabEvidence(
   assert.equal(await fileTabs.getAttribute("data-file-path"), firstPath);
   const tabContextMenu = await verifyFileTabContextMenu({
     page,
+    clipboard,
     tab: fileTabs,
     filePath: firstPath,
     capture,
@@ -368,6 +372,13 @@ export async function collectThreadSidePanelNewTabEvidence(
     file,
     capture,
   );
+  const fileSelectionEvidence = await collectFileTreeSelectionEvidence(page, {
+    tree,
+    workspace,
+    file,
+    timeoutMs: options.timeoutMs,
+    capture,
+  });
   const fileEditorEvidence = await collectFileEditorEvidence(
     page,
     options,
@@ -726,6 +737,7 @@ export async function collectThreadSidePanelNewTabEvidence(
       arrowKeyFocus: true,
     },
     localFileMenus: { tree: treeContextMenu, tab: tabContextMenu },
+    fileSelectionEvidence,
     filePathTabs: [firstPath, secondPath],
     utf8FileBeyondPreviewBoundary: {
       sizeBytes: file.secondFileSize,

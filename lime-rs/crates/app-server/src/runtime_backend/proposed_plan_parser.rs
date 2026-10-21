@@ -22,6 +22,8 @@ pub(super) struct ProposedPlanParser {
 #[derive(Debug, Default)]
 struct MessageParser {
     buffer: String,
+    citation_parser: CitationParser,
+    citations: Vec<String>,
     mode: ParserMode,
     plan_text: String,
     current_revision_id: Option<String>,
@@ -62,6 +64,69 @@ pub(super) struct FinishedMessage {
     pub(super) has_message_output: bool,
     pub(super) text: Option<String>,
     pub(super) needs_start: bool,
+    pub(super) memory_citation: Option<app_server_protocol::protocol::v2::MemoryCitation>,
+}
+
+#[derive(Debug, Default)]
+struct CitationParser {
+    pending: String,
+    body: String,
+    in_citation: bool,
+    citations: Vec<String>,
+}
+
+const MEMORY_CITATION_OPEN: &str = "<oai-mem-citation>";
+const MEMORY_CITATION_CLOSE: &str = "</oai-mem-citation>";
+
+impl CitationParser {
+    fn push_str(&mut self, text: &str) -> String {
+        self.pending.push_str(text);
+        let mut visible = String::new();
+        loop {
+            if self.in_citation {
+                if let Some(index) = self.pending.find(MEMORY_CITATION_CLOSE) {
+                    self.body.push_str(&self.pending[..index]);
+                    self.pending.drain(..index + MEMORY_CITATION_CLOSE.len());
+                    self.citations.push(std::mem::take(&mut self.body));
+                    self.in_citation = false;
+                    continue;
+                }
+                let keep = longest_partial_tag_suffix(&self.pending, MEMORY_CITATION_CLOSE);
+                let emit_len = self.pending.len().saturating_sub(keep);
+                self.body.push_str(&self.pending[..emit_len]);
+                self.pending.drain(..emit_len);
+                break;
+            }
+            if let Some(index) = self.pending.find(MEMORY_CITATION_OPEN) {
+                visible.push_str(&self.pending[..index]);
+                self.pending.drain(..index + MEMORY_CITATION_OPEN.len());
+                self.in_citation = true;
+                continue;
+            }
+            let keep = longest_partial_tag_suffix(&self.pending, MEMORY_CITATION_OPEN);
+            let emit_len = self.pending.len().saturating_sub(keep);
+            visible.push_str(&self.pending[..emit_len]);
+            self.pending.drain(..emit_len);
+            break;
+        }
+        visible
+    }
+
+    fn finish(&mut self) -> String {
+        if self.in_citation {
+            self.body.push_str(&self.pending);
+            self.pending.clear();
+            self.citations.push(std::mem::take(&mut self.body));
+            self.in_citation = false;
+            String::new()
+        } else {
+            std::mem::take(&mut self.pending)
+        }
+    }
+
+    fn take_citations(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.citations)
+    }
 }
 
 impl ProposedPlanParser {
@@ -120,6 +185,7 @@ impl ProposedPlanParser {
         };
         self.message_order.retain(|candidate| candidate != &key);
         let segments = message.finish();
+        let memory_citation = message.memory_citation();
         self.message_output_emitted |= message.message_output_emitted;
         Ok(FinishedMessage {
             events: segments_to_runtime_events(
@@ -131,6 +197,7 @@ impl ProposedPlanParser {
             has_message_output: message.message_output_emitted,
             text: None,
             needs_start: false,
+            memory_citation,
         })
     }
 
@@ -141,6 +208,7 @@ impl ProposedPlanParser {
             .filter_map(|key| {
                 let mut message = self.messages.remove(&key)?;
                 let segments = message.finish();
+                let memory_citation = message.memory_citation();
                 self.message_output_emitted |= message.message_output_emitted;
                 Some(FinishedMessage {
                     events: segments_to_runtime_events(
@@ -152,6 +220,7 @@ impl ProposedPlanParser {
                     has_message_output: message.message_output_emitted,
                     text: None,
                     needs_start: false,
+                    memory_citation,
                 })
             })
             .collect()
@@ -190,7 +259,8 @@ impl MessageParser {
         text: &str,
         plan_revision_index: &mut usize,
     ) -> Vec<ProposedPlanSegment> {
-        self.buffer.push_str(text);
+        let visible_text = self.citation_parser.push_str(text);
+        self.buffer.push_str(&visible_text);
         let mut segments = Vec::new();
         loop {
             let progressed = match self.mode {
@@ -207,6 +277,8 @@ impl MessageParser {
     }
 
     fn finish(&mut self) -> Vec<ProposedPlanSegment> {
+        self.buffer.push_str(&self.citation_parser.finish());
+        self.citations.extend(self.citation_parser.take_citations());
         let mut segments = Vec::new();
         match self.mode {
             ParserMode::OutsidePlan => {
@@ -227,6 +299,11 @@ impl MessageParser {
             }
         }
         segments
+    }
+
+    fn memory_citation(&self) -> Option<app_server_protocol::protocol::v2::MemoryCitation> {
+        let value = Value::Array(self.citations.iter().cloned().map(Value::String).collect());
+        crate::memory_store::parse_memory_citation(&value)
     }
 
     fn process_outside_plan(
@@ -625,6 +702,32 @@ mod tests {
             vec!["plan.delta", "plan.final"]
         );
         assert!(!parser.has_message_output());
+    }
+
+    #[test]
+    fn citation_tags_are_hidden_and_citation_metadata_is_attached_at_completion() {
+        let mut parser = ProposedPlanParser::default();
+        let first = split_runtime_event(
+            RuntimeEvent::new(
+                "message.delta",
+                json!({"itemId":"message", "text":"答案 <oai-mem-"}),
+            ),
+            &mut parser,
+        );
+        let second = split_runtime_event(
+            RuntimeEvent::new(
+                "message.delta",
+                json!({"itemId":"message", "text":"citation><rollout_ids>thread-1</rollout_ids></oai-mem-citation>完成"}),
+            ),
+            &mut parser,
+        );
+        assert_eq!(first[0].payload["text"], "答案 ");
+        assert_eq!(second[0].payload["text"], "完成");
+        let finished = finish_runtime_message(&mut parser, "message").expect("completion");
+        assert_eq!(
+            finished.memory_citation.as_ref().unwrap().thread_ids,
+            vec!["thread-1".to_string()]
+        );
     }
 
     #[test]

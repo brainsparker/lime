@@ -172,8 +172,7 @@ vi.mock("react-i18next", () => ({
         "agentChat.canvasWorkbench.coding.tabs.markdown": "Markdown",
         "agentChat.canvasWorkbench.coding.tabs.html": "HTML",
         "agentChat.canvasWorkbench.coding.tabs.code": "Code",
-        "agentChat.canvasWorkbench.coding.tabs.outputs": "输出",
-        "agentChat.canvasWorkbench.coding.tabs.logs": "日志",
+        "agentChat.canvasWorkbench.coding.tabs.summary": "摘要",
         "agentChat.canvasWorkbench.coding.preview.htmlBadge": "HTML",
         "agentChat.canvasWorkbench.coding.preview.mode.empty":
           "还没有可预览的文件内容。",
@@ -296,10 +295,6 @@ vi.mock("react-i18next", () => ({
         "agentChat.canvasWorkbench.coding.changes.toast.refreshFailed":
           "刷新变更失败",
         "agentChat.canvasWorkbench.coding.changes.submit": "提交",
-        "agentChat.canvasWorkbench.coding.outputs.empty":
-          "本轮还没有可展示的输出。",
-        "agentChat.canvasWorkbench.coding.logs.empty":
-          "本轮还没有可展示的日志。",
       };
       return translations[key] ?? key;
     },

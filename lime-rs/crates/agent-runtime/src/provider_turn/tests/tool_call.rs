@@ -4,6 +4,29 @@ use crate::model_history::{HistoryReceipt, ModelHistoryRecord, ModelHistoryRecor
 const ORIGINAL_ARGUMENTS: &str =
     r#"{ "file_path": " README.md ", "start_line": "2", "end_line": "3" }"#;
 
+#[test]
+fn local_tool_call_carries_the_immutable_sampling_context() {
+    let call = CurrentProviderToolCall::new("call-1", "read_file", serde_json::json!({}));
+    let context = crate::session_loop::RuntimeSessionStepContext {
+        session_id: "session-1".into(),
+        turn_id: "turn-1".into(),
+        step_index: 7,
+        context_epoch: 3,
+        mailbox_delivery_phase: crate::session_loop::RuntimeSessionMailboxDeliveryPhase::NextTurn,
+    };
+    let call = super::super::tool_call::annotate_step_context(call, Some(&context));
+    assert_eq!(
+        call.provider_metadata.get("runtime_step_context"),
+        Some(&serde_json::json!({
+            "session_id": "session-1",
+            "turn_id": "turn-1",
+            "step_index": 7,
+            "context_epoch": 3,
+            "mailbox_delivery_phase": "NextTurn",
+        }))
+    );
+}
+
 #[tokio::test]
 async fn repaired_tool_call_keeps_original_model_history_and_executed_projection() {
     let provider = Arc::new(ScriptedProvider::new(vec![

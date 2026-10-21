@@ -62,14 +62,15 @@ impl RouteHealthKey {
     }
 }
 
-// Reuse the health owner's complete route identity, including API version and
-// credential scope. Model names do not define an opaque-state compatibility
-// boundary; Codex handles declared compaction compatibility separately.
+// Reuse the health owner's complete route identity, including model, API version
+// and credential scope. A model change is an opaque-state boundary: native
+// response items and continuation ids must be lowered to portable content.
 pub(super) fn history_producer(config: &RuntimeProviderConfig) -> String {
     let key = RouteHealthKey::from_config(config);
     let mut digest = Sha256::new();
     for value in [
         key.provider,
+        key.model,
         key.base_url,
         key.api_version,
         key.protocol.to_string(),
